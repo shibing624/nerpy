@@ -50,7 +50,6 @@ setup(
         "numpy",
         "pandas",
     ],
-    test_suite='tests',
     packages=find_packages(exclude=['tests']),
     package_dir={'nerpy': 'nerpy'},
     package_data={'nerpy': ['*.*', 'data/*.txt']}
