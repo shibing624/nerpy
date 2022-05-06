@@ -16,7 +16,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 setup(
     name='nerpy',
     version=__version__,
-    description='Text to vector Tool, encode text',
+    description='nerpy: Named Entity Recognition toolkit using Python',
     long_description=readme,
     long_description_content_type='text/markdown',
     author='XuMing',
