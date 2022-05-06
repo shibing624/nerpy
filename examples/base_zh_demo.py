@@ -7,54 +7,38 @@ generate sentence embeddings for a given list of sentences.
 """
 
 import sys
+from scipy.special import softmax
+import numpy as np
 
 sys.path.append('..')
-from nerpy import SentenceModel, cos_sim, semantic_search, Similarity, EncoderType
+from nerpy.ner_model import NERModel
 
 if __name__ == '__main__':
-    m = SentenceModel("shibing624/nerpy-base-chinese", encoder_type="FIRST_LAST_AVG")
-    # Corpus with example sentences
-    corpus = [
-        '花呗更改绑定银行卡',
-        '我什么时候开通了花呗',
-        '俄罗斯警告乌克兰反对欧盟协议',
-        '暴风雨掩埋了东北部；新泽西16英寸的降雪',
-        '中央情报局局长访问以色列叙利亚会谈',
-        '人在巴基斯坦基地的炸弹袭击中丧生',
+    model = NERModel(
+        "bert",
+        "bert-base-chinese",
+        args={"overwrite_output_dir": True,
+              "reprocess_input_data": True,
+              "output_dir": "./output/",
+              "max_seq_length": 128,
+              "num_train_epochs": 3,
+              "train_batch_size": 32,
+              },
+        use_cuda=False
+    )
+    sentences = [
+        "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
+        "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
     ]
-    # 1. Compute text embedding
-    corpus_embeddings = m.encode(corpus)
-    print(type(corpus_embeddings), corpus_embeddings.shape)
-    # The result is a list of sentence embeddings as numpy arrays
-    for sentence, embedding in zip(corpus, corpus_embeddings):
-        print("Sentence:", sentence)
-        print("Embedding shape:", embedding.shape)
-        print("Embedding head:", embedding[:10])
-        print()
+    predictions, raw_outputs = model.predict(sentences)
+    print(predictions, raw_outputs)
 
-    # 2. Compute cosine-similarities for sentence1 and sentence2
-    sim_model = Similarity("shibing624/nerpy-base-chinese", encoder_type=EncoderType.FIRST_LAST_AVG)
-    cosine_scores = sim_model.get_score(corpus[0], corpus[1])
-    print('{} vs {} cos score: {:.4f}'.format(corpus[0], corpus[1], cosine_scores))
-    # 以上相似度计算的实质是对embedding结果求cos值，等同于：
-    cosine_scores = cos_sim(corpus_embeddings[0], corpus_embeddings[1])
-    print('{} vs {} cos score: {:.4f}'.format(corpus[0], corpus[1], float(cosine_scores[0])))
-
-    print('#' * 42)
-    # 3. Use semantic_search to perform cosine similarty + topk
-    # Query sentences:
-    queries = [
-        '如何更换花呗绑定银行卡',
-        '叛军击落乌克兰直升机.',
-        '中央情报局局长在以色列讨论叙利亚局势',
-        '巴基斯坦西北部8名士兵在炸弹袭击中丧生',
-    ]
-    for query in queries:
-        query_embedding = m.encode(query)
-        hits = semantic_search(query_embedding, corpus_embeddings, top_k=5)
-        print("\n\n======================\n\n")
-        print("Query:", query)
-        print("\nTop 5 most similar sentences in corpus:")
-        hits = hits[0]  # Get the hits for the first query
-        for hit in hits:
-            print(corpus[hit['corpus_id']], "(Score: {:.4f})".format(hit['score']))
+    # More detailed predictions
+    for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
+        print("\n___________________________")
+        print("Sentence: ", sentences[n])
+        for pred, out in zip(preds, outs):
+            key = list(pred.keys())[0]
+            new_out = out[key]
+            preds = list(softmax(np.mean(new_out, axis=0)))
+            print(key, pred[key], preds[np.argmax(preds)], preds)

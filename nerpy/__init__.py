@@ -6,4 +6,4 @@
 
 from nerpy.version import __version__
 
-from nerpy.utils.get_file import http_get, get_file
+from nerpy.get_file import http_get, get_file

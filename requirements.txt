@@ -3,6 +3,6 @@ loguru
 transformers>=4.6.0
 datasets
 tqdm
-scikit-learn
+scipy
 pandas
 numpy
