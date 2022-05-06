@@ -6,66 +6,48 @@
 import os
 import sys
 import unittest
-from time import time
+import time
 
 sys.path.append('..')
-from nerpy import Word2Vec, SentenceModel
+from nerpy.ner_model import NERModel
+from nerpy.dataset import load_data
 
 pwd_path = os.path.abspath(os.path.dirname(__file__))
-sts_test_path = os.path.join(pwd_path, '../examples/data/STS-B/STS-B.test.data')
+test_path = os.path.join(pwd_path, '../examples/data/cner/test.char.bmes')
 
-
-def load_test_data(path):
-    sents1, sents2, labels = [], [], []
-    with open(path, 'r', encoding='utf8') as f:
-        for line in f:
-            line = line.strip().split('\t')
-            if len(line) != 3:
-                continue
-            sents1.append(line[0])
-            sents2.append(line[1])
-            labels.append(int(line[2]))
-            if len(sents1) > 10:
-                break
-    return sents1, sents2, labels
+model = NERModel(
+    "bert",
+    "bert-base-chinese",
+    args={"overwrite_output_dir": True,
+          "reprocess_input_data": True,
+          "output_dir": "./output/",
+          "max_seq_length": 128,
+          "num_train_epochs": 3,
+          "train_batch_size": 32,
+          },
+    use_cuda=False
+)
 
 
 class QPSEncoderTestCase(unittest.TestCase):
     def test_cosent_speed(self):
         """测试cosent_speed"""
-        sents1, sents2, labels = load_test_data(sts_test_path)
-        m = SentenceModel('shibing624/nerpy-base-chinese')
-        sents = sents1 + sents2
-        print('sente size:', len(sents))
-        t1 = time()
-        m.encode(sents)
-        spend_time = time() - t1
+        data, labels = load_data(test_path)
+        print('sente size:', len(data))
+        t1 = time.time()
+        # model.predict(data)
+        time.sleep(1)
+        spend_time = time.time() - t1
         print('spend time:', spend_time, ' seconds')
-        print('cosent_sbert qps:', len(sents) / spend_time)
+        print('cosent_sbert qps:', len(data) / spend_time)
 
     def test_sbert_speed(self):
         """测试sbert_speed"""
-        sents1, sents2, labels = load_test_data(sts_test_path)
-        m = SentenceModel()
-        sents = sents1 + sents2
-        print('sente size:', len(sents))
-        t1 = time()
-        m.encode(sents)
-        spend_time = time() - t1
-        print('spend time:', spend_time, ' seconds')
-        print('sbert qps:', len(sents) / spend_time)
+        pass
 
     def test_w2v_speed(self):
         """测试w2v_speed"""
-        sents1, sents2, labels = load_test_data(sts_test_path)
-        m = Word2Vec()
-        sents = sents1 + sents2
-        print('sente size:', len(sents))
-        t1 = time()
-        m.encode(sents)
-        spend_time = time() - t1
-        print('spend time:', spend_time, ' seconds')
-        print('w2v qps:', len(sents) / spend_time)
+        pass
 
 
 if __name__ == '__main__':
