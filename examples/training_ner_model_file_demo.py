@@ -35,7 +35,7 @@ def main():
               "num_train_epochs": 3,
               "train_batch_size": 32,
               },
-        use_cuda=False
+        use_cuda=True,
     )
 
     # Train the model

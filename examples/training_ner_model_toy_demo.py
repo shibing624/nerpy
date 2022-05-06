@@ -3,7 +3,6 @@
 @author:XuMing(xuming624@qq.com)
 @description: 
 """
-import argparse
 import sys
 import numpy as np
 import pandas as pd
@@ -15,7 +14,7 @@ from nerpy.ner_model import NERModel
 
 def main():
     # Creating train_df  and eval_df for demonstration
-    train_data = [
+    train_samples = [
         [0, "Simple", "B-MISC"],
         [0, "Transformers", "I-MISC"],
         [0, "started", "O"],
@@ -29,9 +28,9 @@ def main():
         [1, "perform", "O"],
         [1, "NER", "B-MISC"],
     ]
-    train_df = pd.DataFrame(train_data, columns=["sentence_id", "words", "labels"])
+    train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
 
-    eval_data = [
+    test_samples = [
         [0, "Simple", "B-MISC"],
         [0, "Transformers", "I-MISC"],
         [0, "was", "O"],
@@ -47,7 +46,7 @@ def main():
         [1, "perform", "O"],
         [1, "NER", "B-MISC"],
     ]
-    eval_df = pd.DataFrame(eval_data, columns=["sentence_id", "words", "labels"])
+    test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
 
     # Create a NERModel
     model = NERModel(
@@ -58,10 +57,10 @@ def main():
     )
 
     # Train the model
-    model.train_model(train_df)
+    model.train_model(train_data)
 
     # Evaluate the model
-    result, model_outputs, predictions = model.eval_model(eval_df)
+    result, model_outputs, predictions = model.eval_model(test_data)
     print(result, model_outputs, predictions)
 
     # Predictions on arbitary text strings
