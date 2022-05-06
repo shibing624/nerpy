@@ -20,7 +20,8 @@ def main():
     train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
     eval_data = pd.DataFrame(eval_samples, columns=["sentence_id", "words", "labels"])
     test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
-    print(train_data.head())
+    print('train data:', train_data.head(20))
+    print('labels:', train_labels)
     print("train shape:", train_data.shape, " eval shape:", eval_data.shape, " test shape:", test_data.shape)
 
     # Create a NERModel
@@ -43,15 +44,16 @@ def main():
 
     # Evaluate the model with test data
     result, model_outputs, predictions = model.eval_model(test_data)
-    print(result, model_outputs, predictions)
+    print(result, predictions)
 
     # Predictions on arbitary text strings
     sentences = [
         "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
         "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
     ]
-    predictions, raw_outputs = model.predict(sentences)
-    print(predictions, raw_outputs)
+    sentence_with_space = [" ".join(sentence) for sentence in sentences]
+    predictions, raw_outputs = model.predict(sentence_with_space, split_on_space=True)
+    print(predictions)
 
     # More detailed preditctions
     for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
