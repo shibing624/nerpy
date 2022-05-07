@@ -30,7 +30,7 @@ if __name__ == '__main__':
                  inputs=[input],
                  outputs=[output_text],
                  # theme="grass",
-                 title="Chinese Text to Vector Model shibing624/bert4ner-base-chinese",
+                 title="Chinese Named Entity Recognition(NER) Model shibing624/bert4ner-base-chinese",
                  description="Copy or input Chinese text here. Submit and the machine will calculate the NER entity.",
                  article="Link to <a href='https://github.com/shibing624/nerpy' style='color:blue;' target='_blank\'>Github REPO</a>",
                  examples=examples

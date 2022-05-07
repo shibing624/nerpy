@@ -59,10 +59,16 @@
 
 # Demo
 
-HuggingFace Demo: https://huggingface.co/spaces/shibing624/nerpy
+Demo: https://huggingface.co/spaces/shibing624/nerpy
 
 ![](docs/hf.png)
 
+run example: [examples/gradio_demo.py](examples/gradio_demo.py) to see the demo:
+```shell
+python examples/gradio_demo.py
+```
+
+ 
 # Install
 ```
 pip3 install torch # conda install pytorch
