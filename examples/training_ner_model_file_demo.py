@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import pandas as pd
 from loguru import logger
+import time
 from scipy.special import softmax
 
 sys.path.append('..')
@@ -70,8 +71,10 @@ def main():
             args.best_model_dir,
         )
         # Evaluate the model with test data
+        t1 = time.time()
         result, model_outputs, predictions = model.eval_model(test_data)
         print(result)
+        print('spend time:', time.time() - t1, ' qps:', len(test_data) / (time.time() - t1))
 
         # Predictions on text strings
         sentences = [

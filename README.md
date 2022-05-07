@@ -32,29 +32,29 @@
 
 - 英文实体识别数据集的评测结果：
 
-| Arch | Backbone | Model Name | English-STS-B | 
+| Arch | Backbone | Model Name | CoNLL-2003 | 
 | :-- | :--- | :--- | :-: |
-| BertSoftmax | bert-base-uncased | CoSENT-base-nli-first_last_avg | 79.68 |
+| BertSoftmax | bert-base-uncased | bert-softmax-base-uncased | - |
 
 - 中文实体识别数据集的评测结果：
 
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 48.29 | 69.99 | 79.22 | 44.10 | 72.42 | 62.80 | - |
+| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | - |
 
 - 本项目release模型的中文匹配评测结果：
 
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :---- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 20.00 | 31.49 | 59.46 | 2.57 | 55.78 | 33.86 | 10283 |
+| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | - |
 
 说明：
 - 结果值均使用F1
 - 结果均只用该数据集的train训练，在test上评估得到的表现，没用外部数据
-- `CoSENT-macbert-base`模型达到同级别参数量SOTA效果，是用CoSENT方法训练，运行[examples/training_sup_text_matching_model.py](examples/training_sup_text_matching_model.py)代码可在各数据集复现结果
-- 各预训练模型均可以通过transformers调用，如MacBERT模型：`--model_name hfl/chinese-macbert-base`
-- 中文匹配数据集下载[链接见下方](#数据集)
-- 中文匹配任务实验表明，pooling最优是`first_last_avg`，即 SentenceModel 的`EncoderType.FIRST_LAST_AVG`，其与`EncoderType.MEAN`的方法在预测效果上差异很小
+- `shibing624/bert4ner-base-chinese`模型达到同级别参数量SOTA效果，是用BertSoftmax方法训练，
+ 运行[examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)代码可在各数据集复现结果
+- 各预训练模型均可以通过transformers调用，如中文BERT模型：`--model_name bert-base-chinese`
+- 中文实体识别数据集下载[链接见下方](#数据集)
 - QPS的GPU测试环境是Tesla V100，显存32GB
 
 # Demo
@@ -123,10 +123,10 @@ output:
 是`nerpy.NERModel`指定的默认模型，可以通过上面示例调用，或者如下所示用[transformers库](https://github.com/huggingface/transformers)调用，
 模型自动下载到本机路径：`~/.cache/huggingface/transformers`
 
-#### Usage (HuggingFace Transformers)
+#### Usage (HuggingFace Transformers) (doing)
 Without [nerpy](https://github.com/shibing624/nerpy), you can use the model like this: 
 
-First, you pass your input through the transformer model, then you have to apply the right pooling-operation on-top of the contextualized word embeddings.
+First, you pass your input through the transformer model, then you have to apply the bio to get the entity words.
 
 example: [examples/use_origin_transformers_demo.py](examples/use_origin_transformers_demo.py)
 
