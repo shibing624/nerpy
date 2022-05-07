@@ -50,6 +50,7 @@ setup(
         "numpy",
         "pandas",
         "seqeval",
+        "tensorboard",
     ],
     packages=find_packages(exclude=['tests']),
     package_dir={'nerpy': 'nerpy'},

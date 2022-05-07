@@ -217,7 +217,6 @@ Network structure:
 shibing624/bert4ner-base-chinese
     ├── config.json
     ├── model_args.json
-    ├── eval_result.txt
     ├── pytorch_model.bin
     ├── special_tokens_map.json
     ├── tokenizer_config.json
