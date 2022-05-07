@@ -24,7 +24,7 @@
 
 # Feature
 ### 命名实体识别模型
-- [CoSENT(Cosine Sentence)](nerpy/cosent_model.py)：CoSENT模型提出了一种排序的损失函数，使训练过程更贴近预测，模型收敛速度和效果比Sentence-BERT更好，本项目基于PyTorch实现了CoSENT模型的训练和预测
+- [BertSoftmax](nerpy/ner_model.py)：BertSoftmax基于BERT预训练模型实现实体识别，本项目基于PyTorch实现了BertSoftmax模型的训练和预测
 
 # Evaluation
 
@@ -34,19 +34,19 @@
 
 | Arch | Backbone | Model Name | English-STS-B | 
 | :-- | :--- | :--- | :-: |
-| CoSENT | sentence-transformers/bert-base-nli-mean-tokens | CoSENT-base-nli-first_last_avg | 79.68 |
+| BertSoftmax | bert-base-uncased | CoSENT-base-nli-first_last_avg | 79.68 |
 
 - 中文实体识别数据集的评测结果：
 
-| Arch | Backbone | Model Name | ATEC | BQ | LCQMC | PAWSX | STS-B | Avg | QPS |
-| :-- | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| SBERT | hfl/chinese-roberta-wwm-ext | SBERT-roberta-ext | 48.29 | 69.99 | 79.22 | 44.10 | 72.42 | 62.80 | - |
+| Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
+| :-- | :--- | :--- | :-: | :-: | :-: | :-: |
+| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 48.29 | 69.99 | 79.22 | 44.10 | 72.42 | 62.80 | - |
 
 - 本项目release模型的中文匹配评测结果：
 
-| Arch | Backbone | Model Name | ATEC | BQ | LCQMC | PAWSX | STS-B | Avg | QPS |
-| :-- | :--- | :---- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| Word2Vec | word2vec | w2v-light-tencent-chinese | 20.00 | 31.49 | 59.46 | 2.57 | 55.78 | 33.86 | 10283 |
+| Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
+| :-- | :--- | :---- | :-: | :-: | :-: | :-: |
+| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 20.00 | 31.49 | 59.46 | 2.57 | 55.78 | 33.86 | 10283 |
 
 说明：
 - 结果值均使用F1
@@ -79,58 +79,48 @@ cd nerpy
 python3 setup.py install
 ```
 
-### 数据集
-中文实体识别数据集已经上传到huggingface datasets [https://huggingface.co/datasets/shibing624/nli_zh](https://huggingface.co/datasets/shibing624/nli_zh)
 
 # Usage
 
-## 实体识别
+## 命名实体识别
 
-基于`pretrained model`计算实体识别：
+基于以上`fine-tuned model`识别实体：
 
 ```shell
->>> from nerpy import Bert2Tag
->>> m = Bert2Tag()
->>> m.ner("University of California is located in California, United States")
-{'LOCATION': ['California', 'United States'], 'ORGANIZATION': ['University of California']}
+>>> from nerpy import NERModel
+>>> model = NERModel("bert", "shibing624/bert4ner-base-chinese")
+>>> predictions, raw_outputs, entities = model.predict(["常建良，男，1963年出生，工科学士，高级工程师"], split_on_space=False)
+entities: [('常建良', 'NAME'), ('工科', 'PRO'), ('学士', 'EDU'), ('高级工程师', 'TITLE')]
 ```
 
-example: [examples/ner_demo.py](examples/ner_demo.py)
+example: [examples/base_zh_demo.py](examples/base_zh_demo.py)
 
 ```python
 import sys
 
 sys.path.append('..')
-from nerpy import Bert2Tag
+from nerpy import NERModel
 
-def compute_ner(model):
+if __name__ == '__main__':
+    # 中文实体识别模型(BertSoftmax): shibing624/bert4ner-base-chinese
+    model = NERModel("bert", "shibing624/bert4ner-base-chinese")
     sentences = [
-        '北京大学学生来到水立方观看水上芭蕾表演',
-        'University of California is located in California, United States'
+        "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
+        "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
     ]
-    entities = model.ner(sentences)
+    predictions, raw_outputs, entities = model.predict(sentences)
     print(entities)
-
-
-if __name__ == "__main__":
-    # 中文实体识别模型，支持fine-tune继续训练
-    t2v_model = Bert2Tag("shibing624/nerpy-base-chinese")
-    compute_ner(t2v_model)
-
-    # 支持多语言的实体识别模型，英文实体识别任务推荐，支持fine-tune继续训练
-    sbert_model = Bert2Tag("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-    compute_ner(sbert_model)
 ```
 
 output:
 ```
-{'LOCATION': ['水立方'], 'ORGANIZATION': ['北京大学']}
-{'LOCATION': ['California', 'United States'], 'ORGANIZATION': ['University of California']}
+[('常建良', 'NAME'), ('工科', 'PRO'), ('学士', 'EDU'), ('高级工程师', 'TITLE'), ('北京物资学院', 'ORG'), ('客座副教授', 'TITLE')]
+[('国家物资局', 'ORG'), ('物资部', 'ORG'), ('国内贸易部金属材料流通司', 'ORG'), ('科员', 'TITLE'), ('主任科员', 'TITLE')]
 ```
 
-- `shibing624/nerpy-base-chinese`模型是CoSENT方法在中文STS-B数据集训练得到的，模型已经上传到huggingface的
-模型库[shibing624/nerpy-base-chinese](https://huggingface.co/shibing624/nerpy-base-chinese)，
-是`nerpy.SentenceModel`指定的默认模型，可以通过上面示例调用，或者如下所示用[transformers库](https://github.com/huggingface/transformers)调用，
+- `shibing624/bert4ner-base-chinese`模型是BertSoftmax方法在中文CNER数据集训练得到的，模型已经上传到huggingface的
+模型库[shibing624/bert4ner-base-chinese](https://huggingface.co/shibing624/bert4ner-base-chinese)，
+是`nerpy.NERModel`指定的默认模型，可以通过上面示例调用，或者如下所示用[transformers库](https://github.com/huggingface/transformers)调用，
 模型自动下载到本机路径：`~/.cache/huggingface/transformers`
 
 #### Usage (HuggingFace Transformers)
@@ -144,64 +134,90 @@ example: [examples/use_origin_transformers_demo.py](examples/use_origin_transfor
 import os
 import torch
 from transformers import AutoTokenizer, AutoModel
-
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-
-# Mean Pooling - Take attention mask into account for correct averaging
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output[0]  # First element of model_output contains all token embeddings
-    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-
-
 # Load model from HuggingFace Hub
-tokenizer = AutoTokenizer.from_pretrained('shibing624/nerpy-base-chinese')
-model = AutoModel.from_pretrained('shibing624/nerpy-base-chinese')
-sentences = ['北京大学学生来到水立方观看水上芭蕾表演']
+tokenizer = AutoTokenizer.from_pretrained('shibing624/bert4ner-base-chinese')
+model = AutoModel.from_pretrained('shibing624/bert4ner-base-chinese')
+sentences = ['常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授',
+             '在国家物资局、物资部、国内贸易部金属材料流通司从事调拨分配工作']
 # Tokenize sentences
 encoded_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
 
 # Compute token embeddings
 with torch.no_grad():
     model_output = model(**encoded_input)
-print("Sentence Entities:")
-print(model_output)
+
+entities = model_output
+print("Sentence entity:")
+print(entities)
 ```
 
 
+### 数据集
 
-## Bert2Tag model
+#### 中文实体识别数据集
 
-Sentence-BERT文本匹配模型，表征式句向量表示方案
+
+| 数据集 | 语料 | 下载链接 | 文件大小 |
+| :------- | :--------- | :---------: | :---------: |
+| **`CNER中文实体识别数据集`** | CNER(12万字) | [CNER github](https://github.com/shibing624/nerpy/tree/main/examples/data/cner)| 1.1MB |
+| **`PEOPLE中文实体识别数据集`** | 人民日报实体集（200万字） | [PEOPLE github](https://github.com/shibing624/nerpy/tree/main/examples/data/people)| 12.8MB |
+
+CNER中文实体识别数据集，数据格式：
+
+```text
+美	B-LOC
+国	I-LOC
+的	O
+华	B-PER
+莱	I-PER
+士	I-PER
+
+我	O
+跟	O
+他	O
+```
+
+
+## BertSoftmax 模型
+
+BertSoftmax实体识别模型，基于BERT的标准序列标注方法：
 
 Network structure:
 
-Training:
 
-<img src="docs/sbert_train.png" width="300" />
+<img src="docs/bert.png" width="300" />
 
 
-Inference:
-
-<img src="docs/sbert_inference.png" width="300" />
-
-#### Bert2Tag 监督模型
-- 在中文STS-B数据集训练和评估`MacBERT+Bert2Tag`模型
-
-example: [examples/training_sup_text_matching_model.py](examples/training_sup_text_matching_model.py)
-
-```shell
-cd examples
-python3 training_sup_text_matching_model.py --model_arch sentencebert --do_train --do_predict --num_epochs 10 --model_name hfl/chinese-macbert-base --output_dir ./outputs/STS-B-sbert
+模型文件组成：
 ```
-- 在英文STS-B数据集训练和评估`BERT+SBERT`模型
+shibing624/bert4ner-base-chinese
+    ├── config.json
+    ├── model_args.json
+    ├── eval_result.txt
+    ├── pytorch_model.bin
+    ├── special_tokens_map.json
+    ├── tokenizer_config.json
+    └── vocab.txt
+```
 
-example: [examples/training_sup_text_matching_model_en.py](examples/training_sup_text_matching_model_en.py)
+#### BertSoftmax 模型训练和预测
+- 在中文CNER数据集训练和评估`BertSoftmax`模型
+
+example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)
 
 ```shell
 cd examples
-python3 training_sup_text_matching_model_en.py --model_arch sentencebert --do_train --do_predict --num_epochs 10 --model_name bert-base-uncased --output_dir ./outputs/STS-B-en-sbert
+python3 training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5
+```
+- 在英文CoNLL-2003数据集训练和评估`BertSoftmax`模型
+
+example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)
+
+```shell
+cd examples
+python3 training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5
 ```
 
 
@@ -221,7 +237,7 @@ python3 training_sup_text_matching_model_en.py --model_arch sentencebert --do_tr
 
 APA:
 ```latex
-Xu, M. nerpy: Text to vector toolkit (Version 0.0.2) [Computer software]. https://github.com/shibing624/nerpy
+Xu, M. nerpy: Named Entity Recognition Toolkit (Version 0.0.2) [Computer software]. https://github.com/shibing624/nerpy
 ```
 
 BibTeX:

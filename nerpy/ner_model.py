@@ -125,8 +125,8 @@ use_cuda = torch.cuda.is_available()
 class NERModel:
     def __init__(
             self,
-            model_type,
-            model_name,
+            model_type="bert",
+            model_name="shibing624/bert4ner-base-chinese",
             labels=None,
             weight=None,
             args=None,
@@ -1185,7 +1185,7 @@ class NERModel:
             )
         return results, model_outputs, preds_list
 
-    def predict(self, to_predict, split_on_space=True):
+    def predict(self, to_predict, split_on_space=False):
         """
         Performs predictions on a list of text.
 
@@ -1193,8 +1193,8 @@ class NERModel:
             to_predict: A python list of text (str) to be sent to the model for prediction.
             split_on_space: If True, each sequence will be split by spaces for assigning labels.
                             If False, to_predict must be a a list of lists, with the inner list being a
-                            list of strings consisting of the split sequences. The outer list is the list of sequences to
-                            predict on.
+                            list of strings consisting of the split sequences. The outer list is the list of sequences 
+                            to predict on.
 
         Returns:
             preds: A Python list of lists with dicts containing each word mapped to its NER tag.

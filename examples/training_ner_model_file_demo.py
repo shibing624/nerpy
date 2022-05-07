@@ -23,7 +23,6 @@ def main():
     parser.add_argument('--model_name', default='bert-base-chinese', type=str, help='Transformers model or path')
     parser.add_argument('--do_train', action='store_true', help='Whether to run training.')
     parser.add_argument('--do_predict', action='store_true', help='Whether to run predict.')
-    parser.add_argument('--use_cuda', action='store_true', help='Whether to use cuda.')
     parser.add_argument('--output_dir', default='./outputs/', type=str, help='Model output directory')
     parser.add_argument('--best_model_dir', default='./outputs/best_model/', type=str, help='Model output directory')
     parser.add_argument('--max_seq_length', default=128, type=int, help='Max sequence length')
@@ -32,17 +31,16 @@ def main():
     args = parser.parse_args()
     logger.info(args)
 
-    train_samples, train_labels = load_data(f'data/{args.task_name}/train.char.bio.tsv')
-    eval_samples, _ = load_data(f'data/{args.task_name}/dev.char.bio.tsv')
-    test_samples, _ = load_data(f'data/{args.task_name}/test.char.bio.tsv')
-    train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
-    eval_data = pd.DataFrame(eval_samples, columns=["sentence_id", "words", "labels"])
-    test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
-    logger.info(f'train data: {train_data.head(20)}')
-    logger.info(f'train labels: {train_labels}')
-    logger.info(f'train shape: {train_data.shape}, eval shape: {eval_data.shape}, test shape: {test_data.shape}')
-
     if args.do_train:
+        train_samples, train_labels = load_data(f'data/{args.task_name}/train.char.bio.tsv')
+        eval_samples, _ = load_data(f'data/{args.task_name}/dev.char.bio.tsv')
+        train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
+        eval_data = pd.DataFrame(eval_samples, columns=["sentence_id", "words", "labels"])
+
+        logger.info(f'train data: {train_data.head(20)}')
+        logger.info(f'train labels: {train_labels}')
+        logger.info(f'train shape: {train_data.shape}, eval shape: {eval_data.shape}')
+
         # Create a NERModel
         model = NERModel(
             args.model_type,
@@ -58,17 +56,18 @@ def main():
                   "classification_report": True,
                   "evaluate_during_training": True,
                   },
-            use_cuda=args.use_cuda,
         )
         # Train the model
         model.train_model(train_data, eval_data=eval_data)
 
     if args.do_predict:
+        test_samples, _ = load_data(f'data/{args.task_name}/test.char.bio.tsv')
+        test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
+        logger.info(f'test shape: {test_data.shape}')
+
         model = NERModel(
             args.model_type,
             args.best_model_dir,
-            labels=train_labels,
-            use_cuda=args.use_cuda,
         )
         # Evaluate the model with test data
         result, model_outputs, predictions = model.eval_model(test_data)

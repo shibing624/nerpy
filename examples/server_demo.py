@@ -9,21 +9,18 @@ import sys
 import os
 from fastapi import FastAPI, Query
 from starlette.middleware.cors import CORSMiddleware
-import torch
 from loguru import logger
 
 sys.path.append('..')
 from nerpy import NERModel
 
 pwd_path = os.path.abspath(os.path.dirname(__file__))
-use_cuda = torch.cuda.is_available()
-logger.info(f'use_cuda:{use_cuda}')
-# Use finetuned model
+# Use fine-tuned model
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_name_or_path", type=str, default="shibing624/ner4ner-base-chinese",
                     help="Model save dir or model name")
 args = parser.parse_args()
-s_model = NERModel('bert', args.model_name_or_path, use_cuda=use_cuda)
+s_model = NERModel('bert', args.model_name_or_path)
 
 # define the app
 app = FastAPI()
