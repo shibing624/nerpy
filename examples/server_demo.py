@@ -13,17 +13,17 @@ import torch
 from loguru import logger
 
 sys.path.append('..')
-from nerpy import SentenceModel
+from nerpy import NERModel
 
 pwd_path = os.path.abspath(os.path.dirname(__file__))
 use_cuda = torch.cuda.is_available()
 logger.info(f'use_cuda:{use_cuda}')
 # Use finetuned model
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_name_or_path", type=str, default="shibing624/nerpy-base-chinese",
+parser.add_argument("--model_name_or_path", type=str, default="shibing624/ner4ner-base-chinese",
                     help="Model save dir or model name")
 args = parser.parse_args()
-s_model = SentenceModel(args.model_name_or_path)
+s_model = NERModel('bert', args.model_name_or_path, use_cuda=use_cuda)
 
 # define the app
 app = FastAPI()
@@ -43,9 +43,9 @@ async def index():
 @app.get('/emb')
 async def emb(q: str = Query(..., min_length=1, max_length=512, title='query')):
     try:
-        embeddings = s_model.encode(q)
-        result_dict = {'emb': embeddings.tolist()}
-        logger.debug(f"Successfully get sentence embeddings, q:{q}")
+        preds, outputs, entities = s_model.predict(q, split_on_space=False)
+        result_dict = {'entity': entities}
+        logger.debug(f"Successfully get sentence entity, q:{q}")
         return result_dict
     except Exception as e:
         logger.error(e)

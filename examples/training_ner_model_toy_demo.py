@@ -65,13 +65,14 @@ def main():
 
     # Predictions on text strings
     sentences = ["Some arbitary sentence", "Simple Transformers sentence"]
-    predictions, raw_outputs = model.predict(sentences)
-    print(predictions, raw_outputs)
+    predictions, raw_outputs, entities = model.predict(sentences)
+    print(predictions, entities)
 
     # More detailed predictions
     for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
         print("\n___________________________")
         print("Sentence: ", sentences[n])
+        print("Entity: ", entities[n])
         for pred, out in zip(preds, outs):
             key = list(pred.keys())[0]
             new_out = out[key]

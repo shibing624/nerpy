@@ -119,6 +119,7 @@ MODELS_WITH_EXTRA_SEP_TOKEN = [
     "longformer",
     "mpnet",
 ]
+use_cuda = torch.cuda.is_available()
 
 
 class NERModel:
@@ -129,7 +130,7 @@ class NERModel:
             labels=None,
             weight=None,
             args=None,
-            use_cuda=True,
+            use_cuda=use_cuda,
             cuda_device=-1,
             onnx_execution_provider=None,
             **kwargs,

@@ -14,29 +14,19 @@ sys.path.append('..')
 from nerpy.ner_model import NERModel
 
 if __name__ == '__main__':
-    model = NERModel(
-        "bert",
-        "bert-base-chinese",
-        args={"overwrite_output_dir": True,
-              "reprocess_input_data": True,
-              "output_dir": "./output/",
-              "max_seq_length": 128,
-              "num_train_epochs": 3,
-              "train_batch_size": 32,
-              },
-        use_cuda=False
-    )
+    model = NERModel("bert", "bert4ner-base-chinese")
     sentences = [
         "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
         "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
     ]
-    predictions, raw_outputs = model.predict(sentences)
-    print(predictions, raw_outputs)
+    predictions, raw_outputs, entities = model.predict(sentences)
+    print(predictions, entities)
 
     # More detailed predictions
     for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
         print("\n___________________________")
         print("Sentence: ", sentences[n])
+        print("Entity: ", entities[n])
         for pred, out in zip(preds, outs):
             key = list(pred.keys())[0]
             new_out = out[key]

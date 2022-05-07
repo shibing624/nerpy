@@ -66,7 +66,7 @@ def main():
     if args.do_predict:
         model = NERModel(
             args.model_type,
-            args.output_dir,
+            args.best_model_dir,
             labels=train_labels,
             use_cuda=args.use_cuda,
         )

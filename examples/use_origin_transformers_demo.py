@@ -10,25 +10,18 @@ from transformers import AutoTokenizer, AutoModel
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-
-# Mean Pooling - Take attention mask into account for correct averaging
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output[0]  # First element of model_output contains all token embeddings
-    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-
-
 # Load model from HuggingFace Hub
-tokenizer = AutoTokenizer.from_pretrained('shibing624/nerpy-base-chinese')
-model = AutoModel.from_pretrained('shibing624/nerpy-base-chinese')
-sentences = ['如何更换花呗绑定银行卡', '花呗更改绑定银行卡']
+tokenizer = AutoTokenizer.from_pretrained('shibing624/bert4ner-base-chinese')
+model = AutoModel.from_pretrained('shibing624/bert4ner-base-chinese')
+sentences = ['常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授',
+             '在国家物资局、物资部、国内贸易部金属材料流通司从事调拨分配工作']
 # Tokenize sentences
 encoded_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
 
 # Compute token embeddings
 with torch.no_grad():
     model_output = model(**encoded_input)
-# Perform pooling. In this case, max pooling.
-sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
-print("Sentence embeddings:")
-print(sentence_embeddings)
+
+entities = model_output
+print("Sentence entity:")
+print(entities)

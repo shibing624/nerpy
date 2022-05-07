@@ -5,37 +5,33 @@
 """
 
 import gradio as gr
-from nerpy import Similarity, EncoderType
+from nerpy import NERModel
 
-# 中文句向量模型(CoSENT)
-sim_model = Similarity(model_name_or_path='shibing624/nerpy-base-chinese',
-                       encoder_type=EncoderType.FIRST_LAST_AVG)
+# 中文实体识别模型(BertSoftmax)
+ner_model = NERModel('bert', 'shibing624/bert4ner-base-chinese')
 
 
-def ai_text(sentence1, sentence2):
-    score = sim_model.get_score(sentence1, sentence2)
-    print("{} \t\t {} \t\t Score: {:.4f}".format(sentence1, sentence2, score))
+def ai_text(sentence):
+    predictions, raw_outputs, entities = ner_model.predict([sentence])
+    print("{} \t Entity: {}".format(sentence, entities))
 
-    return score
+    return entities
 
 
 if __name__ == '__main__':
     examples = [
-        ['如何更换花呗绑定银行卡', '花呗更改绑定银行卡'],
-        ['我在北京打篮球', '我是北京人，我喜欢篮球'],
-        ['一个女人在看书。', '一个女人在揉面团'],
-        ['一个男人在车库里举重。', '一个人在举重。'],
+        ['常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授'],
+        ['在国家物资局、物资部、国内贸易部金属材料流通司从事调拨分配工作'],
     ]
-    input1 = gr.inputs.Textbox(lines=2, placeholder="Enter First Sentence")
-    input2 = gr.inputs.Textbox(lines=2, placeholder="Enter Second Sentence")
+    input = gr.inputs.Textbox(lines=4, placeholder="Enter Sentence")
 
     output_text = gr.outputs.Textbox()
     gr.Interface(ai_text,
-                 inputs=[input1, input2],
+                 inputs=[input],
                  outputs=[output_text],
                  # theme="grass",
-                 title="Chinese Text to Vector Model shibing624/nerpy-base-chinese",
-                 description="Copy or input Chinese text here. Submit and the machine will calculate the cosine score.",
+                 title="Chinese Text to Vector Model shibing624/bert4ner-base-chinese",
+                 description="Copy or input Chinese text here. Submit and the machine will calculate the NER entity.",
                  article="Link to <a href='https://github.com/shibing624/nerpy' style='color:blue;' target='_blank\'>Github REPO</a>",
                  examples=examples
                  ).launch()
