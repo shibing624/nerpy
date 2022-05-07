@@ -8,7 +8,7 @@ import gradio as gr
 from nerpy import NERModel
 
 # 中文实体识别模型(BertSoftmax)
-ner_model = NERModel('bert', 'shibing624/bert4ner-base-chinese')
+ner_model = NERModel(model_type='bert', model_name='shibing624/bert4ner-base-chinese')
 
 
 def ai_text(sentence):
