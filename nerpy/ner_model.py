@@ -231,6 +231,10 @@ class NERModel:
             self.args.labels_list = labels
         elif self.args.labels_list:
             pass
+        elif 'shibing624/bert4ner-base-chinese' in model_name:
+            self.args.labels_list = [
+                'I-ORG', 'B-LOC', 'O', 'B-ORG', 'I-LOC', 'I-PER', 'B-TIME', 'I-TIME', 'B-PER'
+            ]
         else:
             self.args.labels_list = [
                 "O",

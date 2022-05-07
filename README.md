@@ -10,7 +10,7 @@
 # NERpy
 🌈 Implementation of Named Entity Recognition using Python. 
 
-**nerpy**实现了Bert2Tag、Bert2Span等多种命名实体识别模型，并在标准数据集上比较了各模型的效果。
+**nerpy**实现了BertSoftmax、BertCrf、BertSpan等多种命名实体识别模型，并在标准数据集上比较了各模型的效果。
 
 
 **Guide**
@@ -40,13 +40,13 @@
 
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | - |
+| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
 
 - 本项目release模型的中文匹配评测结果：
 
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :---- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | - |
+| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
 
 说明：
 - 结果值均使用F1
@@ -58,8 +58,6 @@
 - QPS的GPU测试环境是Tesla V100，显存32GB
 
 # Demo
-
-Official Demo: http://42.193.145.218/product/short_text_sim/
 
 HuggingFace Demo: https://huggingface.co/spaces/shibing624/nerpy
 
@@ -84,13 +82,13 @@ python3 setup.py install
 
 ## 命名实体识别
 
-基于以上`fine-tuned model`识别实体：
+基于中文`fine-tuned model`识别实体：
 
 ```shell
 >>> from nerpy import NERModel
 >>> model = NERModel("bert", "shibing624/bert4ner-base-chinese")
 >>> predictions, raw_outputs, entities = model.predict(["常建良，男，1963年出生，工科学士，高级工程师"], split_on_space=False)
-entities: [('常建良', 'NAME'), ('工科', 'PRO'), ('学士', 'EDU'), ('高级工程师', 'TITLE')]
+entities: [('常建良', 'PER'), ('1963年', 'TIME')]
 ```
 
 example: [examples/base_zh_demo.py](examples/base_zh_demo.py)
@@ -114,11 +112,11 @@ if __name__ == '__main__':
 
 output:
 ```
-[('常建良', 'NAME'), ('工科', 'PRO'), ('学士', 'EDU'), ('高级工程师', 'TITLE'), ('北京物资学院', 'ORG'), ('客座副教授', 'TITLE')]
-[('国家物资局', 'ORG'), ('物资部', 'ORG'), ('国内贸易部金属材料流通司', 'ORG'), ('科员', 'TITLE'), ('主任科员', 'TITLE')]
+[('常建良', 'PER'), ('1963年', 'TIME'), ('北京物资学院', 'ORG')]
+[('1985年', 'TIME'), ('8月', 'TIME'), ('1993年', 'TIME'), ('国家物资局', 'ORG'), ('物资部', 'ORG'), ('国内贸易部金属材料流通司', 'ORG')]
 ```
 
-- `shibing624/bert4ner-base-chinese`模型是BertSoftmax方法在中文CNER数据集训练得到的，模型已经上传到huggingface的
+- `shibing624/bert4ner-base-chinese`模型是BertSoftmax方法在中文PEOPLE(人民日报)数据集训练得到的，模型已经上传到huggingface的
 模型库[shibing624/bert4ner-base-chinese](https://huggingface.co/shibing624/bert4ner-base-chinese)，
 是`nerpy.NERModel`指定的默认模型，可以通过上面示例调用，或者如下所示用[transformers库](https://github.com/huggingface/transformers)调用，
 模型自动下载到本机路径：`~/.cache/huggingface/transformers`
@@ -133,26 +131,50 @@ example: [examples/use_origin_transformers_demo.py](examples/use_origin_transfor
 ```python
 import os
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from seqeval.metrics.sequence_labeling import get_entities
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # Load model from HuggingFace Hub
-tokenizer = AutoTokenizer.from_pretrained('shibing624/bert4ner-base-chinese')
-model = AutoModel.from_pretrained('shibing624/bert4ner-base-chinese')
-sentences = ['常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授',
-             '在国家物资局、物资部、国内贸易部金属材料流通司从事调拨分配工作']
-# Tokenize sentences
-encoded_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
+tokenizer = AutoTokenizer.from_pretrained("shibing624/bert4ner-base-chinese")
+model = AutoModelForTokenClassification.from_pretrained("shibing624/bert4ner-base-chinese")
+label_list = ['I-ORG', 'B-LOC', 'O', 'B-ORG', 'I-LOC', 'I-PER', 'B-TIME', 'I-TIME', 'B-PER']
 
-# Compute token embeddings
-with torch.no_grad():
-    model_output = model(**encoded_input)
+sentence = "王宏伟来自北京，是个警察，喜欢去王府井游玩儿。"
 
-entities = model_output
-print("Sentence entity:")
-print(entities)
+
+def get_entity(sentence):
+    tokens = tokenizer.tokenize(tokenizer.decode(tokenizer.encode(sentence)))
+    inputs = tokenizer.encode(sentence, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(inputs).logits
+    predictions = torch.argmax(outputs, dim=2)
+    char_tags = [(token, label_list[prediction]) for token, prediction in zip(tokens, predictions[0].numpy())][1:-1]
+    print(sentence)
+    print(char_tags)
+
+    pred_labels = [i[1] for i in char_tags]
+    entities = []
+    line_entities = get_entities(pred_labels)
+    for i in line_entities:
+        word = sentence[i[1]: i[2] + 1]
+        entity_type = i[0]
+        entities.append((word, entity_type))
+
+    print("Sentence entity:")
+    print(entities)
+
+
+get_entity(sentence)
 ```
-
+output:
+```shell
+王宏伟来自北京，是个警察，喜欢去王府井游玩儿。
+[('王', 'B-PER'), ('宏', 'I-PER'), ('伟', 'I-PER'), ('来', 'O'), ('自', 'O'), ('北', 'B-LOC'), ('京', 'I-LOC'), ('，', 'O'), ('是', 'O'), ('个', 'O'), ('警', 'O'), ('察', 'O'), ('，', 'O'), ('喜', 'O'), ('欢', 'O'), ('去', 'O'), ('王', 'B-LOC'), ('府', 'I-LOC'), ('井', 'I-LOC'), ('游', 'O'), ('玩', 'O'), ('儿', 'O'), ('。', 'O')]
+Sentence entity:
+[('王宏伟', 'PER'), ('北京', 'LOC'), ('王府井', 'LOC')]
+```
 
 ### 数据集
 
@@ -162,7 +184,7 @@ print(entities)
 | 数据集 | 语料 | 下载链接 | 文件大小 |
 | :------- | :--------- | :---------: | :---------: |
 | **`CNER中文实体识别数据集`** | CNER(12万字) | [CNER github](https://github.com/shibing624/nerpy/tree/main/examples/data/cner)| 1.1MB |
-| **`PEOPLE中文实体识别数据集`** | 人民日报实体集（200万字） | [PEOPLE github](https://github.com/shibing624/nerpy/tree/main/examples/data/people)| 12.8MB |
+| **`PEOPLE中文实体识别数据集`** | 人民日报数据集（200万字） | [PEOPLE github](https://github.com/shibing624/nerpy/tree/main/examples/data/people)| 12.8MB |
 
 CNER中文实体识别数据集，数据格式：
 
@@ -187,7 +209,7 @@ BertSoftmax实体识别模型，基于BERT的标准序列标注方法：
 Network structure:
 
 
-<img src="docs/bert.png" width="300" />
+<img src="docs/bert.png" width="500" />
 
 
 模型文件组成：

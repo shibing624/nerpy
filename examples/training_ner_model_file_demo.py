@@ -74,7 +74,9 @@ def main():
         t1 = time.time()
         result, model_outputs, predictions = model.eval_model(test_data)
         print(result)
-        print('spend time:', time.time() - t1, ' qps:', len(test_data['sentence_id'].unique()) / (time.time() - t1))
+        spend_time = time.time() - t1
+        count = len(test_data['sentence_id'].unique())
+        print('spend time:', spend_time, ' sentences size:', count, ' qps:', count / spend_time)
 
         # Predictions on text strings
         sentences = [
