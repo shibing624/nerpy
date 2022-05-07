@@ -225,7 +225,6 @@ class NERModel:
 
         if labels and self.args.labels_list:
             # assert labels == self.args.labels_list
-            logger.debug("Using labels list: %s", labels)
             self.args.labels_list = labels
         elif labels:
             self.args.labels_list = labels
@@ -244,6 +243,7 @@ class NERModel:
                 "I-LOC",
             ]
         self.num_labels = len(self.args.labels_list)
+        logger.debug(f"Using labels list: {self.args.labels_list}")
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
