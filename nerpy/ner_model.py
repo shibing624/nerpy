@@ -1395,7 +1395,7 @@ class NERModel:
                     preds_labels.append(pred[key])
                 line_entities = get_entities(preds_labels)
                 for i in line_entities:
-                    word = ' '.join(to_predict[n].split()[i[1]:i[2]])
+                    word = ' '.join(to_predict[n].split()[i[1]: i[2] + 1])
                     entity_type = i[0]
                     pairs.append((word, entity_type))
                 entities.append(pairs)
@@ -1415,7 +1415,7 @@ class NERModel:
                     preds_labels.append(pred[key])
                 line_entities = get_entities(preds_labels)
                 for i in line_entities:
-                    word = to_predict[n][i[1]:i[2]]
+                    word = to_predict[n][i[1]: i[2] + 1]
                     entity_type = i[0]
                     pairs.append((word, entity_type))
                 entities.append(pairs)
