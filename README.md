@@ -121,10 +121,10 @@ output:
 是`nerpy.NERModel`指定的默认模型，可以通过上面示例调用，或者如下所示用[transformers库](https://github.com/huggingface/transformers)调用，
 模型自动下载到本机路径：`~/.cache/huggingface/transformers`
 
-#### Usage (HuggingFace Transformers) (doing)
+#### Usage (HuggingFace Transformers)
 Without [nerpy](https://github.com/shibing624/nerpy), you can use the model like this: 
 
-First, you pass your input through the transformer model, then you have to apply the bio to get the entity words.
+First, you pass your input through the transformer model, then you have to apply the bio tag to get the entity words.
 
 example: [examples/use_origin_transformers_demo.py](examples/use_origin_transformers_demo.py)
 
