@@ -18,7 +18,6 @@
 import collections
 import linecache
 import os
-from io import open
 from multiprocessing import Pool, cpu_count
 
 import torch
@@ -80,7 +79,7 @@ def read_examples_from_file(data_file, mode, bbox=False):
     file_path = data_file
     guid_index = 1
     examples = []
-    with open(file_path, encoding="utf-8") as f:
+    with open(file_path, "r", encoding="utf8") as f:
         words = []
         labels = []
         for line in f:
@@ -497,7 +496,7 @@ def convert_examples_to_features(
 
 def get_labels(path):
     if path:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf8") as f:
             labels = f.read().splitlines()
         if "O" not in labels:
             labels = ["O"] + labels
@@ -675,7 +674,7 @@ class LazyNERDataset(Dataset):
         example_lines = {}
         start = lazy_loading_start_line
         entry_num = 0
-        with open(data_file, encoding="utf-8") as f:
+        with open(data_file, "r", encoding="utf8") as f:
             for line_idx, _ in enumerate(f, 1):
                 if _ == "\n" and line_idx > lazy_loading_start_line:
                     example_lines[entry_num] = (start, line_idx)

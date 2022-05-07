@@ -1153,7 +1153,7 @@ class NERModel:
 
         os.makedirs(eval_output_dir, exist_ok=True)
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
-        with open(output_eval_file, "w") as writer:
+        with open(output_eval_file, "w", encoding="utf8") as writer:
             if args.classification_report:
                 cls_report = classification_report(out_label_list, preds_list, digits=4)
                 writer.write("{}\n".format(cls_report))
@@ -1680,7 +1680,7 @@ class NERModel:
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
-            with open(output_eval_file, "w") as writer:
+            with open(output_eval_file, "w", encoding="utf8") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
 
