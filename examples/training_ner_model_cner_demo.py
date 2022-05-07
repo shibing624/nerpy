@@ -35,6 +35,7 @@ def main():
               "max_seq_length": 128,
               "num_train_epochs": 4,
               "train_batch_size": 32,
+              "classification_report": True,
               "evaluate_during_training": True,
               "evaluate_during_training_steps": 50,
               },
@@ -53,9 +54,8 @@ def main():
         "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
         "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
     ]
-    sentence_with_space = [" ".join(sentence) for sentence in sentences]
-    predictions, raw_outputs = model.predict(sentence_with_space, split_on_space=True)
-    print(predictions)
+    predictions, raw_outputs, entities = model.predict(sentences, split_on_space=False)
+    print(predictions, entities)
 
     # More detailed predictions
     for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):

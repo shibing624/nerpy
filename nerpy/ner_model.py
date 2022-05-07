@@ -22,6 +22,7 @@ from seqeval.metrics import (
     precision_score,
     recall_score,
 )
+from seqeval.metrics.sequence_labeling import get_entities
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -1198,7 +1199,8 @@ class NERModel:
 
         Returns:
             preds: A Python list of lists with dicts containing each word mapped to its NER tag.
-            model_outputs: A Python list of lists with dicts containing each word mapped to its list with raw model output.
+            model_outputs: A Python list of lists with dicts containing each word mapped to its list with model output.
+            entities: Get entities.
         """  # noqa: ignore flake8"
 
         device = self.device
@@ -1376,6 +1378,7 @@ class NERModel:
                 if out_label_ids[i, j] != pad_token_label_id:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
+        entities = []
         if split_on_space:
             preds = [
                 [
@@ -1384,6 +1387,18 @@ class NERModel:
                 ]
                 for i, sentence in enumerate(to_predict)
             ]
+            for n, pres in enumerate(preds):
+                pairs = []
+                preds_labels = []
+                for pred in pres:
+                    key = list(pred.keys())[0]
+                    preds_labels.append(pred[key])
+                line_entities = get_entities(preds_labels)
+                for i in line_entities:
+                    word = ' '.join(to_predict[n].split()[i[1]:i[2]])
+                    entity_type = i[0]
+                    pairs.append((word, entity_type))
+                entities.append(pairs)
         else:
             preds = [
                 [
@@ -1392,6 +1407,19 @@ class NERModel:
                 ]
                 for i, sentence in enumerate(to_predict)
             ]
+            for n, pres in enumerate(preds):
+                pairs = []
+                preds_labels = []
+                for pred in pres:
+                    key = list(pred.keys())[0]
+                    preds_labels.append(pred[key])
+                line_entities = get_entities(preds_labels)
+                for i in line_entities:
+                    word = to_predict[n][i[1]:i[2]]
+                    entity_type = i[0]
+                    pairs.append((word, entity_type))
+                entities.append(pairs)
+
         word_tokens = []
         for n, sentence in enumerate(to_predict):
             w_log = self._convert_tokens_to_word_logits(
@@ -1418,7 +1446,7 @@ class NERModel:
                 for i, sentence in enumerate(to_predict)
             ]
 
-        return preds, model_outputs
+        return preds, model_outputs, entities
 
     def _convert_tokens_to_word_logits(
             self, input_ids, label_ids, attention_mask, logits
