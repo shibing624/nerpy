@@ -146,7 +146,7 @@ class FocalLoss(nn.Module):
 def init_loss(weight, device, args):
     if weight and args.loss_type:
         warnings.warn(
-            f"weight and args.loss_type parametters are set at the same time"
+            f"weight and args.loss_type parameters are set at the same time"
             f"will use weighted cross entropy loss. To use {args.loss_type} set weight to None"
         )
     if weight:

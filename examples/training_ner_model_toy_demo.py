@@ -63,12 +63,12 @@ def main():
     result, model_outputs, predictions = model.eval_model(test_data)
     print(result, model_outputs, predictions)
 
-    # Predictions on arbitary text strings
+    # Predictions on text strings
     sentences = ["Some arbitary sentence", "Simple Transformers sentence"]
     predictions, raw_outputs = model.predict(sentences)
     print(predictions, raw_outputs)
 
-    # More detailed preditctions
+    # More detailed predictions
     for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
         print("\n___________________________")
         print("Sentence: ", sentences[n])

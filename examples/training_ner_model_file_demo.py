@@ -35,6 +35,7 @@ def main():
               "max_seq_length": 128,
               "num_train_epochs": 3,
               "train_batch_size": 32,
+              "loss_type": "focal",
               },
         use_cuda=True,
     )
@@ -44,9 +45,9 @@ def main():
 
     # Evaluate the model with test data
     result, model_outputs, predictions = model.eval_model(test_data)
-    print(result, predictions)
+    print(result)
 
-    # Predictions on arbitary text strings
+    # Predictions on text strings
     sentences = [
         "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
         "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
@@ -55,7 +56,7 @@ def main():
     predictions, raw_outputs = model.predict(sentence_with_space, split_on_space=True)
     print(predictions)
 
-    # More detailed preditctions
+    # More detailed predictions
     for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
         print("\n___________________________")
         print("Sentence: ", sentences[n])
@@ -63,7 +64,7 @@ def main():
             key = list(pred.keys())[0]
             new_out = out[key]
             preds = list(softmax(np.mean(new_out, axis=0)))
-            print(key, pred[key], preds[np.argmax(preds)], preds)
+            print(key, pred[key], preds[np.argmax(preds)])
 
 
 if __name__ == '__main__':
