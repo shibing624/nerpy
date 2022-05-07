@@ -20,8 +20,8 @@ sentence = "王宏伟来自北京，是个警察，喜欢去王府井游玩儿�
 
 
 def get_entity(sentence):
-    tokens = tokenizer.tokenize(tokenizer.decode(tokenizer.encode(sentence)))
     inputs = tokenizer.encode(sentence, return_tensors="pt")
+    tokens = tokenizer.tokenize(sentence)
     with torch.no_grad():
         outputs = model(inputs).logits
     predictions = torch.argmax(outputs, dim=2)
