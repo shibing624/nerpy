@@ -37,7 +37,6 @@ def main():
               "train_batch_size": 32,
               "classification_report": True,
               "evaluate_during_training": True,
-              "evaluate_during_training_steps": 500,
               },
         use_cuda=True,
     )

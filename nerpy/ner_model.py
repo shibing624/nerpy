@@ -225,7 +225,8 @@ class NERModel:
             self.args.fp16 = False
 
         if labels and self.args.labels_list:
-            assert labels == self.args.labels_list
+            # assert labels == self.args.labels_list
+            logger.debug("Using labels list: %s", labels)
             self.args.labels_list = labels
         elif labels:
             self.args.labels_list = labels
@@ -1202,7 +1203,6 @@ class NERModel:
             model_outputs: A Python list of lists with dicts containing each word mapped to its list with model output.
             entities: Get entities.
         """  # noqa: ignore flake8"
-
         device = self.device
         model = self.model
         args = self.args
