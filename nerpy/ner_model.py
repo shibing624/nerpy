@@ -4,7 +4,7 @@
 @description: Named entity recognition fine-tuning: utilities to work with CoNLL-2003 task.
 """
 import collections
-import logging
+from loguru import logger
 import math
 import os
 import random
@@ -108,7 +108,6 @@ try:
 except ImportError:
     wandb_available = False
 
-logger = logging.getLogger(__name__)
 os.environ["TOKENIZERS_PARALLELISM"] = "FALSE"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
