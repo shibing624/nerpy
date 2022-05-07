@@ -14,9 +14,9 @@ from nerpy.dataset import load_data
 
 
 def main():
-    train_samples, train_labels = load_data('data/cner/train.char.bmes')
-    eval_samples, _ = load_data('data/cner/dev.char.bmes')
-    test_samples, _ = load_data('data/cner/test.char.bmes')
+    train_samples, train_labels = load_data('data/cner/train.char.bio.tsv')
+    eval_samples, _ = load_data('data/cner/dev.char.bio.tsv')
+    test_samples, _ = load_data('data/cner/test.char.bio.tsv')
     train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
     eval_data = pd.DataFrame(eval_samples, columns=["sentence_id", "words", "labels"])
     test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
@@ -35,7 +35,7 @@ def main():
               "max_seq_length": 128,
               "num_train_epochs": 3,
               "train_batch_size": 32,
-              "loss_type": "focal",
+              # "loss_type": "focal",
               },
         use_cuda=True,
     )
@@ -62,8 +62,7 @@ def main():
         print("Sentence: ", sentences[n])
         for pred, out in zip(preds, outs):
             key = list(pred.keys())[0]
-            new_out = out[key]
-            preds = list(softmax(np.mean(new_out, axis=0)))
+            preds = list(softmax(np.mean(out[key], axis=0)))
             print(key, pred[key], preds[np.argmax(preds)])
 
 

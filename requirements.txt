@@ -4,5 +4,6 @@ transformers>=4.6.0
 datasets
 tqdm
 scipy
-pandas
 numpy
+pandas
+seqeval

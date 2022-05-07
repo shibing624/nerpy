@@ -12,7 +12,7 @@ def load_data(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
-            terms = line.split(' ')
+            terms = line.split()
             if len(terms) == 2:
                 data.append([count, terms[0], terms[1]])
                 labels.add(terms[1])

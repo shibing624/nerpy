@@ -738,9 +738,7 @@ class NERModel:
                                 )
 
                         report = pd.DataFrame(training_progress_scores)
-                        report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"),
-                                      index=False,
-                                      )
+                        report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
                         if args.wandb_project:
                             wandb.log(self._get_last_metrics(training_progress_scores))
                         for key, value in flatten_results(
@@ -751,7 +749,7 @@ class NERModel:
                             except (NotImplementedError, AssertionError):
                                 if verbose:
                                     logger.warning(
-                                        f"can't log value of type: {type(value)} to tensorboar"
+                                        f"can't log value of type: {type(value)} to tensorboard"
                                     )
                         tb_writer.flush()
                         if not best_eval_metric:
@@ -1168,10 +1166,8 @@ class NERModel:
                 config={**asdict(args)},
                 **args.wandb_kwargs,
             )
-            wandb.run._label(repo="simpletransformers")
-
+            wandb.run._label(repo="nerpy")
             labels_list = sorted(self.args.labels_list)
-
             truth = [tag for out in out_label_list for tag in out]
             preds = [tag for pred_out in preds_list for tag in pred_out]
             outputs = [
@@ -1640,7 +1636,7 @@ class NERModel:
                 loss = loss_fct(active_logits, active_labels)
             else:
                 loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
-        return (loss, *outputs[1:])
+        return loss, *outputs[1:]
 
     def _move_model_to_device(self):
         self.model.to(self.device)
@@ -1667,9 +1663,7 @@ class NERModel:
     def _create_training_progress_scores(self, **kwargs):
         return collections.defaultdict(list)
 
-    def save_model(
-            self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
-    ):
+    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
         if not output_dir:
             output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
