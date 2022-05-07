@@ -3190,7 +3190,7 @@ y I-ORG
 民 O
 族 O
 ： O
-汉 S-RACE
+汉 B-RACE
 出 O
 生 O
 年 O
@@ -4662,7 +4662,7 @@ A I-EDU
 事 I-TITLE
 。 O
 
-马 S-NAME
+马 B-NAME
 先 O
 生 O
 1 O
@@ -4767,7 +4767,7 @@ A I-EDU
 董 I-TITLE
 。 O
 
-马 S-NAME
+马 B-NAME
 先 O
 生 O
 长 O
@@ -11489,7 +11489,7 @@ A I-EDU
 事 I-TITLE
 。 O
 
-李 S-NAME
+李 B-NAME
 先 O
 生 O
 自 O
@@ -12925,7 +12925,7 @@ A I-EDU
 师 I-TITLE
 。 O
 
-刘 S-NAME
+刘 B-NAME
 先 O
 生 O
 于 O
@@ -13062,7 +13062,7 @@ g O
 奖 O
 。 O
 
-刘 S-NAME
+刘 B-NAME
 先 O
 生 O
 曾 O
@@ -13994,7 +13994,7 @@ g O
 理 I-TITLE
 。 O
 
-顾 S-NAME
+顾 B-NAME
 先 O
 生 O
 1 O
@@ -14106,7 +14106,7 @@ g O
 公 I-ORG
 司 I-ORG
 ， O
-顾 S-NAME
+顾 B-NAME
 先 O
 生 O
 出 O
@@ -14116,7 +14116,7 @@ g O
 理 I-TITLE
 。 O
 
-顾 S-NAME
+顾 B-NAME
 先 O
 生 O
 1 O
