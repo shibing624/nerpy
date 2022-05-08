@@ -11,8 +11,8 @@ from seqeval.metrics.sequence_labeling import get_entities
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # Load model from HuggingFace Hub
-tokenizer = AutoTokenizer.from_pretrained("../bert4ner-base-uncased")
-model = AutoModelForTokenClassification.from_pretrained("../bert4ner-base-uncased")
+tokenizer = AutoTokenizer.from_pretrained("shibing624/bert4ner-base-uncased")
+model = AutoModelForTokenClassification.from_pretrained("shibing624/bert4ner-base-uncased")
 label_list = ["E-ORG", "E-LOC", "S-MISC", "I-MISC", "S-PER", "E-PER", "B-MISC", "O", "S-LOC",
               "E-MISC", "B-ORG", "S-ORG", "I-ORG", "B-LOC", "I-LOC", "B-PER", "I-PER"]
 
