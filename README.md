@@ -34,7 +34,7 @@
 
 | Arch | Backbone | Model Name | CoNLL-2003 | 
 | :-- | :--- | :--- | :-: |
-| BertSoftmax | bert-base-uncased | bert-softmax-base-uncased | - |
+| BertSoftmax | bert-base-uncased | bert4ner-base-uncased | 90.43 |
 
 - 中文实体识别数据集的评测结果：
 
@@ -42,17 +42,20 @@
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
 | BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
 
-- 本项目release模型的中文匹配评测结果：
+- 本项目release模型的实体识别评测结果：
 
-| Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
+| Arch | Backbone | Model Name | CNER(zh) | PEOPLE(zh) | CoNLL-2003(en) | QPS |
 | :-- | :--- | :---- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
+| BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | - | 222 |
+| BertSoftmax | bert-base-uncased | shibing624/bert4ner-base-uncased | - | - | 90.43 | 243 |
 
 说明：
 - 结果值均使用F1
 - 结果均只用该数据集的train训练，在test上评估得到的表现，没用外部数据
 - `shibing624/bert4ner-base-chinese`模型达到同级别参数量SOTA效果，是用BertSoftmax方法训练，
- 运行[examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)代码可在各数据集复现结果
+ 运行[examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)代码可在各中文数据集复现结果
+- `shibing624/bert4ner-base-uncased`模型是用BertSoftmax方法训练，
+ 运行[examples/training_ner_model_eng_demo.py](examples/training_ner_model_eng_demo.py)代码可在CoNLL-2003英文数据集复现结果
 - 各预训练模型均可以通过transformers调用，如中文BERT模型：`--model_name bert-base-chinese`
 - 中文实体识别数据集下载[链接见下方](#数据集)
 - QPS的GPU测试环境是Tesla V100，显存32GB
@@ -88,7 +91,16 @@ python3 setup.py install
 
 ## 命名实体识别
 
-基于中文`fine-tuned model`识别实体：
+#### 英文实体识别：
+
+```shell
+>>> from nerpy import NERModel
+>>> model = NERModel("bert", "shibing624/bert4ner-base-uncased")
+>>> predictions, raw_outputs, entities = model.predict(["AL-AIN, United Arab Emirates 1996-12-06"], split_on_space=True)
+entities:  [('AL-AIN,', 'LOC'), ('United Arab Emirates', 'LOC')]
+```
+
+#### 中文实体识别：
 
 ```shell
 >>> from nerpy import NERModel
@@ -184,7 +196,7 @@ Sentence entity:
 
 ### 数据集
 
-#### 中文实体识别数据集
+#### 实体识别数据集
 
 
 | 数据集 | 语料 | 下载链接 | 文件大小 |
@@ -236,15 +248,15 @@ example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_
 
 ```shell
 cd examples
-python3 training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5
+python3 training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5 --task_name cner
 ```
 - 在英文CoNLL-2003数据集训练和评估`BertSoftmax`模型
 
-example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)
+example: [examples/training_ner_model_eng_demo.py](examples/training_ner_model_eng_demo.py)
 
 ```shell
 cd examples
-python3 training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5
+python3 training_ner_model_eng_demo.py --do_train --do_predict --num_epochs 5
 ```
 
 

@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--best_model_dir', default='./outputs/conll03/best_model/', type=str,
                         help='Model output directory')
     parser.add_argument('--max_seq_length', default=128, type=int, help='Max sequence length')
-    parser.add_argument('--num_epochs', default=4, type=int, help='Number of training epochs')
+    parser.add_argument('--num_epochs', default=6, type=int, help='Number of training epochs')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size')
     args = parser.parse_args()
     logger.info(args)

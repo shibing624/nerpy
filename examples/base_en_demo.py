@@ -13,12 +13,13 @@ sys.path.append('..')
 from nerpy import NERModel
 
 if __name__ == '__main__':
-    # 英文实体识别模型(BertSoftmax): shibing624/bert4ner-base-english
-    model = NERModel("bert", "shibing624/bert4ner-base-english")
+    # 英文实体识别模型(BertSoftmax): shibing624/bert4ner-base-uncased
+    model = NERModel("bert", "shibing624/bert4ner-base-uncased")
     sentences = [
         "AL-AIN, United Arab Emirates 1996-12-06",
         "The former Soviet republic was playing in an Asian Cup finals tie for the first time.",
     ]
+    # English text split by space, set split_on_space=True
     predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
     print(predictions, entities)
 

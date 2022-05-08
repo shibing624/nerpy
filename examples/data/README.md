@@ -96,4 +96,4 @@ The overall performance of BERT on **test**:
 
 |              | Accuracy  | Recall    | F1  |
 | ------------ | ------------------ | ------------------ | ------------------ |
-| BERT+Softmax | 0.     | 0.   | 0.     |
+| BERT+Softmax | 0.8956     | 0.9132   | 0.9043     |
