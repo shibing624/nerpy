@@ -125,8 +125,8 @@ use_cuda = torch.cuda.is_available()
 class NERModel:
     def __init__(
             self,
-            model_type="bert",
-            model_name="shibing624/bert4ner-base-chinese",
+            model_type,
+            model_name,
             labels=None,
             weight=None,
             args=None,
