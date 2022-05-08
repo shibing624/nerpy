@@ -203,6 +203,7 @@ Sentence entity:
 | :------- | :--------- | :---------: | :---------: |
 | **`CNER中文实体识别数据集`** | CNER(12万字) | [CNER github](https://github.com/shibing624/nerpy/tree/main/examples/data/cner)| 1.1MB |
 | **`PEOPLE中文实体识别数据集`** | 人民日报数据集（200万字） | [PEOPLE github](https://github.com/shibing624/nerpy/tree/main/examples/data/people)| 12.8MB |
+| **`CoNLL03英文实体识别数据集`** | CoNLL-2003数据集（22万字） | [CoNLL03 github](https://github.com/shibing624/nerpy/tree/main/examples/data/conll03)| 1.7MB |
 
 CNER中文实体识别数据集，数据格式：
 
