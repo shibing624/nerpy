@@ -12,7 +12,7 @@ ner_model = NERModel(model_type='bert', model_name='shibing624/bert4ner-base-chi
 
 
 def ai_text(sentence):
-    predictions, raw_outputs, entities = ner_model.predict([sentence])
+    predictions, raw_outputs, entities = ner_model.predict([sentence], split_on_space=False)
     print("{} \t Entity: {}".format(sentence, entities))
 
     return entities

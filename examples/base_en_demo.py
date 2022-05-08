@@ -13,13 +13,13 @@ sys.path.append('..')
 from nerpy import NERModel
 
 if __name__ == '__main__':
-    # 中文实体识别模型(BertSoftmax): shibing624/bert4ner-base-chinese
-    model = NERModel("bert", "shibing624/bert4ner-base-chinese")
+    # 英文实体识别模型(BertSoftmax): shibing624/bert4ner-base-english
+    model = NERModel("bert", "shibing624/bert4ner-base-english")
     sentences = [
-        "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
-        "1985年8月-1993年在国家物资局、物资部、国内贸易部金属材料流通司从事国家统配钢材中特种钢材品种的调拨分配工作，先后任科员、主任科员。"
+        "AL-AIN, United Arab Emirates 1996-12-06",
+        "The former Soviet republic was playing in an Asian Cup finals tie for the first time.",
     ]
-    predictions, raw_outputs, entities = model.predict(sentences, split_on_space=False)
+    predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
     print(predictions, entities)
 
     # More detailed predictions

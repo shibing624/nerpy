@@ -65,7 +65,7 @@ def main():
 
     # Predictions on text strings
     sentences = ["Some arbitary sentence", "Simple Transformers sentence"]
-    predictions, raw_outputs, entities = model.predict(sentences)
+    predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
     print(predictions, entities)
 
     # More detailed predictions
