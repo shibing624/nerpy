@@ -208,7 +208,6 @@ class NERModel:
         }
 
         self.args = self._load_model_args(model_name)
-
         if isinstance(args, dict):
             self.args.update_from_dict(args)
         elif isinstance(args, NERArgs):
@@ -231,11 +230,11 @@ class NERModel:
             self.args.labels_list = labels
         elif self.args.labels_list:
             pass
-        elif 'shibing624/bert4ner-base-chinese' in model_name:
+        elif 'shibing624/bert4ner-base-chinese' == model_name:
             self.args.labels_list = [
                 'I-ORG', 'B-LOC', 'O', 'B-ORG', 'I-LOC', 'I-PER', 'B-TIME', 'I-TIME', 'B-PER'
             ]
-        elif 'shibing624/bert4ner-base-uncased' in model_name:
+        elif 'shibing624/bert4ner-base-uncased' == model_name:
             self.args.labels_list = [
                 "E-ORG", "E-LOC", "S-MISC", "I-MISC", "S-PER", "E-PER", "B-MISC", "O", "S-LOC",
                 "E-MISC", "B-ORG", "S-ORG", "I-ORG", "B-LOC", "I-LOC", "B-PER", "I-PER"
@@ -255,6 +254,8 @@ class NERModel:
         self.num_labels = len(self.args.labels_list)
         logger.debug(f"Using labels list: {self.args.labels_list}")
 
+        if 'uncased' in model_name:
+            self.args.do_lower_case = True
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
             self.config = config_class.from_pretrained(
