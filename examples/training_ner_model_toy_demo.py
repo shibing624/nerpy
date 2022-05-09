@@ -13,16 +13,16 @@ from nerpy.ner_model import NERModel
 
 
 def main():
-    # Creating train_df  and eval_df for demonstration
+    # Creating samples
     train_samples = [
-        [0, "Simple", "B-MISC"],
+        [0, "HuggingFace", "B-MISC"],
         [0, "Transformers", "I-MISC"],
         [0, "started", "O"],
         [0, "with", "O"],
         [0, "text", "O"],
         [0, "classification", "B-MISC"],
-        [1, "Simple", "B-MISC"],
-        [1, "Transformers", "I-MISC"],
+        [1, "Nerpy", "B-MISC"],
+        [1, "Model", "I-MISC"],
         [1, "can", "O"],
         [1, "now", "O"],
         [1, "perform", "O"],
@@ -31,15 +31,15 @@ def main():
     train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
 
     test_samples = [
-        [0, "Simple", "B-MISC"],
+        [0, "HuggingFace", "B-MISC"],
         [0, "Transformers", "I-MISC"],
         [0, "was", "O"],
         [0, "built", "O"],
         [0, "for", "O"],
         [0, "text", "O"],
         [0, "classification", "B-MISC"],
-        [1, "Simple", "B-MISC"],
-        [1, "Transformers", "I-MISC"],
+        [1, "Nerpy", "B-MISC"],
+        [1, "Model", "I-MISC"],
         [1, "then", "O"],
         [1, "expanded", "O"],
         [1, "to", "O"],
@@ -52,7 +52,7 @@ def main():
     model = NERModel(
         "bert",
         "bert-base-uncased",
-        args={"overwrite_output_dir": True, "reprocess_input_data": True},
+        args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1},
         use_cuda=False,
     )
 
@@ -64,7 +64,7 @@ def main():
     print(result, model_outputs, predictions)
 
     # Predictions on text strings
-    sentences = ["Some arbitary sentence", "Simple Transformers sentence"]
+    sentences = ["Nerpy Model perform sentence NER", "HuggingFace Transformers build for text"]
     predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
     print(predictions, entities)
 

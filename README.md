@@ -243,6 +243,74 @@ shibing624/bert4ner-base-chinese
 ```
 
 #### BertSoftmax 模型训练和预测
+
+training example: [examples/training_ner_model_toy_demo.py](examples/bert_softmax_demo.py)
+
+
+```python
+import sys
+import pandas as pd
+
+sys.path.append('..')
+from nerpy.ner_model import NERModel
+
+
+# Creating samples
+train_samples = [
+    [0, "HuggingFace", "B-MISC"],
+    [0, "Transformers", "I-MISC"],
+    [0, "started", "O"],
+    [0, "with", "O"],
+    [0, "text", "O"],
+    [0, "classification", "B-MISC"],
+    [1, "Nerpy", "B-MISC"],
+    [1, "Model", "I-MISC"],
+    [1, "can", "O"],
+    [1, "now", "O"],
+    [1, "perform", "O"],
+    [1, "NER", "B-MISC"],
+]
+train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
+
+test_samples = [
+    [0, "HuggingFace", "B-MISC"],
+    [0, "Transformers", "I-MISC"],
+    [0, "was", "O"],
+    [0, "built", "O"],
+    [0, "for", "O"],
+    [0, "text", "O"],
+    [0, "classification", "B-MISC"],
+    [1, "Nerpy", "B-MISC"],
+    [1, "Model", "I-MISC"],
+    [1, "then", "O"],
+    [1, "expanded", "O"],
+    [1, "to", "O"],
+    [1, "perform", "O"],
+    [1, "NER", "B-MISC"],
+]
+test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
+
+# Create a NERModel
+model = NERModel(
+    "bert",
+    "bert-base-uncased",
+    args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1},
+    use_cuda=False,
+)
+
+# Train the model
+model.train_model(train_data)
+
+# Evaluate the model
+result, model_outputs, predictions = model.eval_model(test_data)
+print(result, model_outputs, predictions)
+
+# Predictions on text strings
+sentences = ["Nerpy Model perform sentence NER", "HuggingFace Transformers build for text"]
+predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
+print(predictions, entities)
+```
+
 - 在中文CNER数据集训练和评估`BertSoftmax`模型
 
 example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)
