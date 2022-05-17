@@ -36,8 +36,11 @@ def generate_tsv_horizontal_bio(brand_sentences, B='B-ORG', I='I-ORG', O='O'):
     """
     horizontal_bio_tags = []
     for line in brand_sentences:
-        line = line.strip()
+        line = line.strip("\n")
         terms = line.split("\t")
+        if len(terms) != 2:
+            logger.warning(f"pass, error line: {line}")
+            continue
         sent = terms[0]
         brands = terms[1].split(',')
 
@@ -45,17 +48,19 @@ def generate_tsv_horizontal_bio(brand_sentences, B='B-ORG', I='I-ORG', O='O'):
         if brands:
             # Has brands
             for brand in brands:
+                brand = brand.strip()
                 brand_len = len(brand)
-                if brand_len == 1:
+                if brand_len <= 1:
                     continue
-                brand_idx = sent.index(brand)
+                brand_idx = sent.find(brand)
                 if brand_idx > -1:
                     brand_start = brand_idx
                     tags[brand_start] = B
                     for i in range(brand_start + 1, brand_start + brand_len):
                         tags[i] = I
         if len(sent) != len(tags):
-            logger.warning(f"sentence len not equal to tags len, sentence: {len(sent)}, tags: {len(tags)}")
+            logger.warning(f"sentence len not equal to tags len, sentence: "
+                           f"{len(sent)}, tags: {len(tags)}")
             continue
         horizontal_bio_tags.append(sent + '\t' + ' '.join(tags))
 
@@ -76,8 +81,11 @@ def generate_tsv_vertical_bio(brand_sentences, B='B-ORG', I='I-ORG', O='O'):
     """
     vertical_bio_tags = []
     for line in brand_sentences:
-        line = line.strip()
+        line = line.strip("\n")
         terms = line.split("\t")
+        if len(terms) != 2:
+            logger.warning(f"pass, error line: {line}")
+            continue
         sent = terms[0]
         brands = terms[1].split(',')
 
@@ -85,17 +93,19 @@ def generate_tsv_vertical_bio(brand_sentences, B='B-ORG', I='I-ORG', O='O'):
         if brands:
             # Has brands
             for brand in brands:
+                brand = brand.strip()
                 brand_len = len(brand)
-                if brand_len == 1:
+                if brand_len <= 1:
                     continue
-                brand_idx = sent.index(brand)
+                brand_idx = sent.find(brand)
                 if brand_idx > -1:
                     brand_start = brand_idx
                     tags[brand_start] = B
                     for i in range(brand_start + 1, brand_start + brand_len):
                         tags[i] = I
         if len(sent) != len(tags):
-            logger.warning(f"sentence len not equal to tags len, sentence: {len(sent)}, tags: {len(tags)}")
+            logger.warning(f"sentence len not equal to tags len, sentence: "
+                           f"{len(sent)}, tags: {len(tags)}")
             continue
         for i in range(len(sent)):
             vertical_bio_tags.append(sent[i] + '\t' + tags[i])
