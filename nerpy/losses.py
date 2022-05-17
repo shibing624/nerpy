@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
+
+
 # based on:
 # https://github.com/zhezh/focalloss/blob/master/focalloss.py
 # adapted from:
@@ -50,17 +52,17 @@ class FocalLoss(nn.Module):
     """
 
     def __init__(
-        self,
-        alpha: Optional[Union[float, Iterable]] = None,
-        gamma: Real = 2.0,
-        reduction: str = "mean",
-        ignore_index: int = -100,
+            self,
+            alpha: Optional[Union[float, Iterable]] = None,
+            gamma: Real = 2.0,
+            reduction: str = "mean",
+            ignore_index: int = -100,
     ) -> None:
         super(FocalLoss, self).__init__()
         if (
-            alpha is not None
-            and not isinstance(alpha, float)
-            and not isinstance(alpha, Iterable)
+                alpha is not None
+                and not isinstance(alpha, float)
+                and not isinstance(alpha, Iterable)
         ):
             raise ValueError(
                 f"alpha value should be None, float value or list of real values. Got: {type(alpha)}"
@@ -140,7 +142,6 @@ class FocalLoss(nn.Module):
                 "Invalid reduction mode: {}".format(self.reduction)
             )
         return loss
-
 
 
 def init_loss(weight, device, args):
