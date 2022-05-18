@@ -1209,7 +1209,7 @@ class NERModel:
         Returns:
             preds: A Python list of lists with dicts containing each word mapped to its NER tag.
             model_outputs: A Python list of lists with dicts containing each word mapped to its list with model output.
-            entities: Get entities.
+            entities: Get entities. format: [('Bill Gates', 'PER'), ...]
         """  # noqa: ignore flake8"
         device = self.device
         model = self.model
