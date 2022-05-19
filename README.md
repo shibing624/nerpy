@@ -74,8 +74,8 @@ python examples/gradio_demo.py
  
 # Install
 ```shell
-pip3 install torch # conda install pytorch
-pip3 install -U nerpy
+pip install torch # conda install pytorch
+pip install -U nerpy
 ```
 
 or
@@ -319,7 +319,7 @@ example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_
 
 ```shell
 cd examples
-python3 training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5 --task_name cner
+python training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5 --task_name cner
 ```
 - 在英文CoNLL-2003数据集训练和评估`BertSoftmax`模型
 
@@ -327,7 +327,7 @@ example: [examples/training_ner_model_eng_demo.py](examples/training_ner_model_e
 
 ```shell
 cd examples
-python3 training_ner_model_eng_demo.py --do_train --do_predict --num_epochs 5
+python training_ner_model_eng_demo.py --do_train --do_predict --num_epochs 5
 ```
 
 
@@ -375,4 +375,4 @@ version = {0.0.2}
 之后即可提交PR。
 
 # Reference
-- [transformers](https://github.com/huggingface/transformers)
+- [huggingface/transformers](https://github.com/huggingface/transformers)
