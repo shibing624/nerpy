@@ -73,19 +73,21 @@ python examples/gradio_demo.py
 
  
 # Install
-```
+```shell
 pip3 install torch # conda install pytorch
 pip3 install -U nerpy
 ```
 
 or
 
-```
+```shell
+pip install torch # conda install pytorch
+pip install -r requirements.txt
+
 git clone https://github.com/shibing624/nerpy.git
 cd nerpy
-python3 setup.py install
+pip install --no-deps .
 ```
-
 
 # Usage
 
