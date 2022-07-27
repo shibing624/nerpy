@@ -73,6 +73,8 @@ python examples/gradio_demo.py
 
  
 # Install
+python 3.8+
+
 ```shell
 pip install torch # conda install pytorch
 pip install -U nerpy

@@ -24,7 +24,7 @@ setup(
     url='https://github.com/shibing624/nerpy',
     license="Apache License 2.0",
     zip_safe=False,
-    python_requires=">=3.6.0",
+    python_requires=">=3.8",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",

@@ -576,7 +576,7 @@ def preprocess_batch_for_hf_dataset(
             pad_token_label_id=pad_token_label_id,
             sequence_a_segment_id=sequence_a_segment_id,
             mask_padding_with_zero=mask_padding_with_zero,
-            return_input_feature=False,
+            return_input_feature=False
         )
         for example in tqdm(examples, disable=silent)
     ]
