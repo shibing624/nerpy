@@ -39,7 +39,6 @@ setup(
     ],
     keywords='NER,nerpy,Chinese Named Entity Recognition Tool,ner,bert,bert2tag',
     install_requires=[
-        "jieba>=0.39",
         "loguru",
         "transformers>=4.6.0",
         "datasets",
