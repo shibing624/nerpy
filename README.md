@@ -53,9 +53,9 @@
 - 结果值均使用F1
 - 结果均只用该数据集的train训练，在test上评估得到的表现，没用外部数据
 - `shibing624/bert4ner-base-chinese`模型达到同级别参数量SOTA效果，是用BertSoftmax方法训练，
- 运行[examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)代码可在各中文数据集复现结果
+ 运行[examples/training_ner_model_zh_demo.py](examples/training_ner_model_zh_demo.py)代码可在各中文数据集复现结果
 - `shibing624/bert4ner-base-uncased`模型是用BertSoftmax方法训练，
- 运行[examples/training_ner_model_eng_demo.py](examples/training_ner_model_eng_demo.py)代码可在CoNLL-2003英文数据集复现结果
+ 运行[examples/training_ner_model_en_demo.py](examples/training_ner_model_en_demo.py)代码可在CoNLL-2003英文数据集复现结果
 - 各预训练模型均可以通过transformers调用，如中文BERT模型：`--model_name bert-base-chinese`
 - 中文实体识别数据集下载[链接见下方](#数据集)
 - QPS的GPU测试环境是Tesla V100，显存32GB
@@ -317,19 +317,19 @@ print(predictions, entities)
 
 - 在中文CNER数据集训练和评估`BertSoftmax`模型
 
-example: [examples/training_ner_model_file_demo.py](examples/training_ner_model_file_demo.py)
+example: [examples/training_ner_model_zh_demo.py](examples/training_ner_model_zh_demo.py)
 
 ```shell
 cd examples
-python training_ner_model_file_demo.py --do_train --do_predict --num_epochs 5 --task_name cner
+python training_ner_model_zh_demo.py --do_train --do_predict --num_epochs 5 --task_name cner
 ```
 - 在英文CoNLL-2003数据集训练和评估`BertSoftmax`模型
 
-example: [examples/training_ner_model_eng_demo.py](examples/training_ner_model_eng_demo.py)
+example: [examples/training_ner_model_en_demo.py](examples/training_ner_model_en_demo.py)
 
 ```shell
 cd examples
-python training_ner_model_eng_demo.py --do_train --do_predict --num_epochs 5
+python training_ner_model_en_demo.py --do_train --do_predict --num_epochs 5
 ```
 
 
