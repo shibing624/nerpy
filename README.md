@@ -25,6 +25,7 @@
 # Feature
 ### 命名实体识别模型
 - [BertSoftmax](nerpy/ner_model.py)：BertSoftmax基于BERT预训练模型实现实体识别，本项目基于PyTorch实现了BertSoftmax模型的训练和预测
+- [BertSpan](nerpy/bertspan.py)：BertSpan基于BERT训练span边界的表示，模型结构更适配实体边界识别，本项目基于PyTorch实现了BertSpan模型的训练和预测
 
 # Evaluation
 
@@ -41,6 +42,7 @@
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
 | BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
+| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 95.95 | - | - | 254 |
 
 - 本项目release模型的实体识别评测结果：
 
@@ -52,7 +54,7 @@
 说明：
 - 结果值均使用F1
 - 结果均只用该数据集的train训练，在test上评估得到的表现，没用外部数据
-- `shibing624/bert4ner-base-chinese`模型达到同级别参数量SOTA效果，是用BertSoftmax方法训练，
+- `shibing624/bert4ner-base-chinese`模型达到base级别里SOTA效果，是用BertSoftmax方法训练，
  运行[examples/training_ner_model_zh_demo.py](examples/training_ner_model_zh_demo.py)代码可在各中文数据集复现结果
 - `shibing624/bert4ner-base-uncased`模型是用BertSoftmax方法训练，
  运行[examples/training_ner_model_en_demo.py](examples/training_ner_model_en_demo.py)代码可在CoNLL-2003英文数据集复现结果
@@ -332,6 +334,17 @@ cd examples
 python training_ner_model_en_demo.py --do_train --do_predict --num_epochs 5
 ```
 
+
+#### BertSpan 模型训练和预测
+
+- 在中文CNER数据集训练和评估`BertSpan`模型
+
+example: [examples/training_bertspan_zh_demo.py](examples/training_bertspan_zh_demo.py)
+
+```shell
+cd examples
+python training_bertspan_zh_demo.py --do_train --do_predict --num_epochs 5 --task_name cner
+```
 
 # Contact
 
