@@ -114,7 +114,7 @@ def get_span_subject(start_ids, end_ids, input_lens=None):
         m = start_ids[k][1: -1]
         n = end_ids[k][1: -1]
         if input_lens is not None:
-            l = input_lens[k]
+            l = input_lens[k] - 2
         else:
             l = None
         for i, s_l in enumerate(m[:l]):
@@ -194,6 +194,7 @@ def convert_example_to_feature(
         else:
             word_tokens = tokenizer.tokenize(tokenizer.unk_token)
             tokens.extend(word_tokens)
+
     start_ids = [pad_token] * len(tokens)
     end_ids = [pad_token] * len(tokens)
     if hasattr(example, 'subject') and example.subject:

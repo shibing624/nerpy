@@ -1110,7 +1110,7 @@ class NERModel:
             if args.model_type in ["bertspan"]:
                 start_pred = torch.argmax(logits[0], -1).cpu().numpy()
                 end_pred = torch.argmax(logits[1], -1).cpu().numpy()
-                input_lens = batch[5].cpu.numpy()
+                input_lens = batch[5].cpu().numpy()
                 outputs = get_span_subject(start_pred, end_pred, input_lens)
                 start_ids = batch[3].tolist()
                 end_ids = batch[4].tolist()
@@ -1381,7 +1381,7 @@ class NERModel:
                 if args.model_type in ["bertspan"]:
                     start_pred = torch.argmax(logits[0], -1).cpu().numpy()
                     end_pred = torch.argmax(logits[1], -1).cpu().numpy()
-                    input_lens = batch[5].cpu.numpy()
+                    input_lens = batch[5].cpu().numpy()
                     outputs = get_span_subject(start_pred, end_pred, input_lens)
                     pred = []
                     entity = []
