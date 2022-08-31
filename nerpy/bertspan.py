@@ -106,17 +106,21 @@ class BertSpanForTokenClassification(BertPreTrainedModel):
         return outputs
 
 
-def get_span_subject(start_ids, end_ids):
+def get_span_subject(start_ids, end_ids, input_lens=None):
     """Get span entities from start and end ids."""
     subjects = []
     for k in range(len(start_ids)):
         subject = []
         m = start_ids[k][1: -1]
         n = end_ids[k][1: -1]
-        for i, s_l in enumerate(m):
+        if input_lens is not None:
+            l = input_lens[k]
+        else:
+            l = None
+        for i, s_l in enumerate(m[:l]):
             if s_l == 0:
                 continue
-            for j, e_l in enumerate(n[i:]):
+            for j, e_l in enumerate(n[i:l]):
                 if s_l == e_l:
                     subject.append((s_l, i, i + j))
                     break
@@ -151,12 +155,13 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, start_ids=None, end_ids=None):
+    def __init__(self, input_ids, input_mask, segment_ids, start_ids=None, end_ids=None, input_len=None):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
         self.start_ids = start_ids
         self.end_ids = end_ids
+        self.input_len = input_len
 
 
 def convert_example_to_feature(
@@ -251,7 +256,7 @@ def convert_example_to_feature(
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
     # tokens are attended to.
     input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
-
+    input_len = len(input_ids)
     # Zero-pad up to the sequence length.
     padding_length = max_seq_length - len(input_ids)
     if pad_on_left:
@@ -280,6 +285,7 @@ def convert_example_to_feature(
             segment_ids=segment_ids,
             start_ids=start_ids,
             end_ids=end_ids,
+            input_len=input_len,
         )
     else:
         return (
@@ -288,6 +294,7 @@ def convert_example_to_feature(
             segment_ids,
             start_ids,
             end_ids,
+            input_len,
         )
 
 
@@ -384,7 +391,8 @@ class BertSpanDataset(Dataset):
         all_segment_ids = torch.tensor(features.segment_ids, dtype=torch.long)
         all_start_ids = torch.tensor(features.start_ids, dtype=torch.long)
         all_end_ids = torch.tensor(features.end_ids, dtype=torch.long)
-        return (all_input_ids, all_input_mask, all_segment_ids, all_start_ids, all_end_ids)
+        all_input_len = torch.tensor(features.input_len, dtype=torch.long)
+        return (all_input_ids, all_input_mask, all_segment_ids, all_start_ids, all_end_ids, all_input_len)
 
     def __len__(self):
         return len(self.example_lines)
