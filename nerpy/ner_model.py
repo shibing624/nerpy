@@ -1072,6 +1072,7 @@ class NERModel:
         out_label_ids = None
         out_input_ids = None
         out_attention_mask = None
+        true_subjects = []
         model_outputs = []
         preds_list = []
         model.eval()
@@ -1106,7 +1107,6 @@ class NERModel:
                     tmp_eval_loss = tmp_eval_loss.mean()
                 eval_loss += tmp_eval_loss.item()
             nb_eval_steps += 1
-
             if args.model_type in ["bertspan"]:
                 start_pred = torch.argmax(logits[0], -1).cpu().numpy()
                 end_pred = torch.argmax(logits[1], -1).cpu().numpy()
@@ -1114,8 +1114,7 @@ class NERModel:
                 start_ids = batch[3].tolist()
                 end_ids = batch[4].tolist()
                 true_subject = get_span_subject(start_ids, end_ids)
-                logger.debug(f"pred: {outputs[:3]}")
-                logger.debug(f"true: {true_subject[:3]}")
+                true_subjects.append(true_subject)
                 span_metric.update(true_subject=true_subject[0], pred_subject=outputs[0])
                 pred_entities = []
                 for i in outputs:
@@ -1123,8 +1122,8 @@ class NERModel:
                     for x in i:
                         pred.append([id2label[x[0]], x[1], x[2]])
                     pred_entities.append(pred)
-                model_outputs.append(outputs)
                 preds_list.append(pred_entities)
+                model_outputs.append(outputs)
             else:
                 if preds is None:
                     preds = logits.detach().cpu().numpy()
@@ -1139,6 +1138,8 @@ class NERModel:
                                                    inputs["attention_mask"].detach().cpu().numpy(), axis=0)
         eval_loss = eval_loss / nb_eval_steps
         if args.model_type in ["bertspan"]:
+            logger.debug(f"pred: {model_outputs[0]}")
+            logger.debug(f"true: {true_subjects[0]}")
             eval_info, entity_info = span_metric.result()
             result = {"eval_loss": eval_loss}
             result.update(eval_info)
