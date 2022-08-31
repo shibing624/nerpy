@@ -1116,7 +1116,8 @@ class NERModel:
                 end_ids = batch[4].tolist()
                 true_subject = get_span_subject(start_ids, end_ids)
                 true_subjects.append(true_subject)
-                span_metric.update(true_subject=true_subject[0], pred_subject=outputs[0])
+                for t, p in zip(true_subject, outputs):
+                    span_metric.update(true_subject=t, pred_subject=p)
                 pred_entities = []
                 for i in outputs:
                     pred = []
