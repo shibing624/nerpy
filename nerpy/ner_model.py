@@ -1111,11 +1111,11 @@ class NERModel:
                 start_pred = torch.argmax(logits[0], -1).cpu().numpy()
                 end_pred = torch.argmax(logits[1], -1).cpu().numpy()
                 outputs = get_span_subject(start_pred, end_pred)
-                logger.debug(f"pred: {outputs}")
                 start_ids = batch[3].tolist()
                 end_ids = batch[4].tolist()
                 true_subject = get_span_subject(start_ids, end_ids)
-                logger.debug(f"true: {true_subject}")
+                logger.debug(f"pred: {outputs[:3]}")
+                logger.debug(f"true: {true_subject[:3]}")
                 span_metric.update(true_subject=true_subject[0], pred_subject=outputs[0])
                 pred_entities = []
                 for i in outputs:
