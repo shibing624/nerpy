@@ -35,10 +35,6 @@ class InputExample(object):
             guid,
             words,
             labels,
-            x0=None,
-            y0=None,
-            x1=None,
-            y1=None,
             tokenized_word_ids=None,
     ):
         """Constructs a InputExample.
@@ -47,35 +43,25 @@ class InputExample(object):
             words: list. The words of the sequence.
             labels: list. The labels for each word of the sequence. This should be
             specified for train and dev examples, but not for test examples.
-            x0: (Optional) list. The list of x0 coordinates for each word.
-            y0: (Optional) list. The list of y0 coordinates for each word.
-            x1: (Optional) list. The list of x1 coordinates for each word.
-            y1: (Optional) list. The list of y1 coordinates for each word.
             tokenized_word_ids: (Optional) list. Tokenized words converted to input_ids
         """
         self.guid = guid
         self.words = words
         self.labels = labels
         self.tokenized_word_ids = tokenized_word_ids
-        if x0 is None:
-            self.bboxes = None
-        else:
-            self.bboxes = [[a, b, c, d] for a, b, c, d in zip(x0, y0, x1, y1)]
 
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_ids, bboxes=None):
+    def __init__(self, input_ids, input_mask, segment_ids, label_ids):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
         self.label_ids = label_ids
-        if bboxes:
-            self.bboxes = bboxes
 
 
-def read_examples_from_file(data_file, mode, bbox=False):
+def read_examples_from_file(data_file, mode):
     file_path = data_file
     guid_index = 1
     examples = []
@@ -83,107 +69,46 @@ def read_examples_from_file(data_file, mode, bbox=False):
         words = []
         labels = []
         for line in f:
-            if bbox:
-                if line.startswith("-DOCSTART-") or line == "" or line == "\n":
-                    if words:
-                        examples.append(
-                            InputExample(
-                                guid="{}-{}".format(mode, guid_index),
-                                words=words,
-                                labels=labels,
-                                x0=x0,
-                                y0=y0,
-                                x1=x1,
-                                y1=y1,
-                            )
+            if line.startswith("-DOCSTART-") or line == "" or line == "\n":
+                if words:
+                    examples.append(
+                        InputExample(
+                            guid="{}-{}".format(mode, guid_index),
+                            words=words,
+                            labels=labels,
                         )
-                        guid_index += 1
-                        words = []
-                        labels = []
-                        x0 = []
-                        y0 = []
-                        x1 = []
-                        y1 = []
-                else:
-                    splits = line.split()
-                    words.append(splits[0])
-                    if len(splits) > 1:
-                        labels.append(splits[1])
-                        x0.append(splits[2])
-                        y0.append(splits[3])
-                        x1.append(splits[4])
-                        y1.append(splits[5])
-                    else:
-                        # Examples could have no label for mode = "test"
-                        labels.append("O")
+                    )
+                    guid_index += 1
+                    words = []
+                    labels = []
             else:
-                if line.startswith("-DOCSTART-") or line == "" or line == "\n":
-                    if words:
-                        examples.append(
-                            InputExample(
-                                guid="{}-{}".format(mode, guid_index),
-                                words=words,
-                                labels=labels,
-                            )
-                        )
-                        guid_index += 1
-                        words = []
-                        labels = []
+                splits = line.split(" ")
+                words.append(splits[0])
+                if len(splits) > 1:
+                    labels.append(splits[-1].replace("\n", ""))
                 else:
-                    splits = line.split(" ")
-                    words.append(splits[0])
-                    if len(splits) > 1:
-                        labels.append(splits[-1].replace("\n", ""))
-                    else:
-                        # Examples could have no label for mode = "test"
-                        labels.append("O")
+                    # Examples could have no label for mode = "test"
+                    labels.append("O")
         if words:
-            if bbox:
-                examples.append(
-                    InputExample(
-                        guid="%s-%d".format(mode, guid_index),
-                        words=words,
-                        labels=labels,
-                        x0=x0,
-                        y0=y0,
-                        x1=x1,
-                        y1=y1,
-                    )
+            examples.append(
+                InputExample(
+                    guid="%s-%d".format(mode, guid_index),
+                    words=words,
+                    labels=labels,
                 )
-            else:
-                examples.append(
-                    InputExample(
-                        guid="%s-%d".format(mode, guid_index),
-                        words=words,
-                        labels=labels,
-                    )
-                )
+            )
     return examples
 
 
-def get_examples_from_df(data, bbox=False):
-    if bbox:
-        return [
-            InputExample(
-                guid=sentence_id,
-                words=sentence_df["words"].tolist(),
-                labels=sentence_df["labels"].tolist(),
-                x0=sentence_df["x0"].tolist(),
-                y0=sentence_df["y0"].tolist(),
-                x1=sentence_df["x1"].tolist(),
-                y1=sentence_df["y1"].tolist(),
-            )
-            for sentence_id, sentence_df in data.groupby(["sentence_id"])
-        ]
-    else:
-        return [
-            InputExample(
-                guid=sentence_id,
-                words=sentence_df["words"].tolist(),
-                labels=sentence_df["labels"].tolist(),
-            )
-            for sentence_id, sentence_df in data.groupby(["sentence_id"])
-        ]
+def get_examples_from_df(data):
+    return [
+        InputExample(
+            guid=sentence_id,
+            words=sentence_df["words"].tolist(),
+            labels=sentence_df["labels"].tolist(),
+        )
+        for sentence_id, sentence_df in data.groupby(["sentence_id"])
+    ]
 
 
 def convert_examples_with_multiprocessing(examples):
@@ -247,48 +172,24 @@ def convert_example_to_feature(
 ):
     tokens = []
     label_ids = []
-    bboxes = []
-    if example.bboxes:
-        for i, (word, label, bbox) in enumerate(
-                zip(example.words, example.labels, example.bboxes)
-        ):
-            if example.tokenized_word_ids is None:
-                word_tokens = tokenizer.tokenize(word)
-            else:
-                word_tokens = example.tokenized_word_ids[i]
+    for i, (word, label) in enumerate(zip(example.words, example.labels)):
+        if example.tokenized_word_ids is None:
+            word_tokens = tokenizer.tokenize(word)
+        else:
+            word_tokens = example.tokenized_word_ids[i]
+        # Use the real label id for the first token of the word, and padding ids for the remaining tokens
+        if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
             tokens.extend(word_tokens)
-            # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-            label_ids.extend(
-                [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
-            )
-            bboxes.extend([bbox] * len(word_tokens))
-
-        cls_token_box = [0, 0, 0, 0]
-        sep_token_box = [1000, 1000, 1000, 1000]
-        pad_token_box = [0, 0, 0, 0]
-
-    else:
-        for i, (word, label) in enumerate(zip(example.words, example.labels)):
-            if example.tokenized_word_ids is None:
-                word_tokens = tokenizer.tokenize(word)
-            else:
-                word_tokens = example.tokenized_word_ids[i]
-            # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-            if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
-                tokens.extend(word_tokens)
-            else:
-                word_tokens = tokenizer.tokenize(tokenizer.unk_token)
-                tokens.extend(word_tokens)
-            label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+        else:
+            word_tokens = tokenizer.tokenize(tokenizer.unk_token)
+            tokens.extend(word_tokens)
+        label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
 
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
     if len(tokens) > max_seq_length - special_tokens_count:
         tokens = tokens[: (max_seq_length - special_tokens_count)]
         label_ids = label_ids[:(max_seq_length - special_tokens_count)]
-        if bboxes:
-            bboxes = bboxes[:(max_seq_length - special_tokens_count)]
-
     # The convention in BERT is:
     # (a) For sequence pairs:
     #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
@@ -309,14 +210,10 @@ def convert_example_to_feature(
     # the entire model is fine-tuned.
     tokens += [sep_token]
     label_ids += [pad_token_label_id]
-    if bboxes:
-        bboxes += [sep_token_box]
     if sep_token_extra:
         # roberta uses an extra separator b/w pairs of sentences
         tokens += [sep_token]
         label_ids += [pad_token_label_id]
-        if bboxes:
-            bboxes += [sep_token_box]
     segment_ids = [sequence_a_segment_id] * len(tokens)
 
     if cls_token_at_end:
@@ -327,8 +224,6 @@ def convert_example_to_feature(
         tokens = [cls_token] + tokens
         label_ids = [pad_token_label_id] + label_ids
         segment_ids = [cls_token_segment_id] + segment_ids
-        if bboxes:
-            bboxes = [cls_token_box] + bboxes
 
     if example.tokenized_word_ids is None:
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -343,9 +238,7 @@ def convert_example_to_feature(
     padding_length = max_seq_length - len(input_ids)
     if pad_on_left:
         input_ids = ([pad_token] * padding_length) + input_ids
-        input_mask = (
-                             [0 if mask_padding_with_zero else 1] * padding_length
-                     ) + input_mask
+        input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
         segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         label_ids = ([pad_token_label_id] * padding_length) + label_ids
     else:
@@ -353,48 +246,26 @@ def convert_example_to_feature(
         input_mask += [0 if mask_padding_with_zero else 1] * padding_length
         segment_ids += [pad_token_segment_id] * padding_length
         label_ids += [pad_token_label_id] * padding_length
-        if bboxes:
-            bboxes += [pad_token_box] * padding_length
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
     assert len(label_ids) == max_seq_length
-    if bboxes:
-        assert len(bboxes) == max_seq_length
 
     if return_input_feature:
-        if bboxes:
-            return InputFeatures(
-                input_ids=input_ids,
-                input_mask=input_mask,
-                segment_ids=segment_ids,
-                label_ids=label_ids,
-                bboxes=bboxes,
-            )
-        else:
-            return InputFeatures(
-                input_ids=input_ids,
-                input_mask=input_mask,
-                segment_ids=segment_ids,
-                label_ids=label_ids,
-            )
+        return InputFeatures(
+            input_ids=input_ids,
+            input_mask=input_mask,
+            segment_ids=segment_ids,
+            label_ids=label_ids,
+        )
     else:
-        if bboxes:
-            return (
-                input_ids,
-                input_mask,
-                segment_ids,
-                label_ids,
-                bboxes,
-            )
-        else:
-            return (
-                input_ids,
-                input_mask,
-                segment_ids,
-                label_ids,
-            )
+        return (
+            input_ids,
+            input_mask,
+            segment_ids,
+            label_ids,
+        )
 
 
 def convert_examples_to_features(
@@ -539,15 +410,11 @@ def preprocess_batch_for_hf_dataset(
         sequence_lengths.append(len(seq))
         all_words.extend(seq)  # Need to check whether adding the prefix space helps
 
-    tokenized_word_ids_all = tokenizer(text=all_words, add_special_tokens=False)[
-        "input_ids"
-    ]
+    tokenized_word_ids_all = tokenizer(text=all_words, add_special_tokens=False)["input_ids"]
 
     tokenized_word_ids_batch = []
     tokenized_word_ids_batch = [
-        tokenized_word_ids_all[
-        len(tokenized_word_ids_batch): len(tokenized_word_ids_batch) + seq_len
-        ]
+        tokenized_word_ids_all[len(tokenized_word_ids_batch): len(tokenized_word_ids_batch) + seq_len]
         for seq_len in sequence_lengths
     ]
 
@@ -744,3 +611,106 @@ def flatten_results(results, parent_key="", sep="/"):
     else:
         out.append((parent_key, results))
     return dict(out)
+
+
+def get_entity_bios(seq, id2label=None):
+    """
+    Gets entities from sequence.
+    note: BIOS
+    Args:
+        seq (list): sequence of labels.
+    Returns:
+        list: list of (chunk_type, chunk_start, chunk_end).
+    Example:
+        # >>> seq = ['B-PER', 'I-PER', 'O', 'S-LOC']
+        # >>> get_entity_bios(seq)
+        [['PER', 0, 1], ['LOC', 3, 3]]
+    """
+    chunks = []
+    chunk = [-1, -1, -1]
+    for indx, tag in enumerate(seq):
+        if not isinstance(tag, str):
+            tag = id2label[tag]
+        if tag.startswith("S-"):
+            if chunk[2] != -1:
+                chunks.append(chunk)
+            chunk = [-1, -1, -1]
+            chunk[1] = indx
+            chunk[2] = indx
+            chunk[0] = tag.split('-')[1]
+            chunks.append(chunk)
+            chunk = [-1, -1, -1]
+        if tag.startswith("B-"):
+            if chunk[2] != -1:
+                chunks.append(chunk)
+            chunk = [-1, -1, -1]
+            chunk[1] = indx
+            chunk[0] = tag.split('-')[1]
+        elif tag.startswith('I-') and chunk[1] != -1:
+            _type = tag.split('-')[1]
+            if _type == chunk[0]:
+                chunk[2] = indx
+            if indx == len(seq) - 1:
+                chunks.append(chunk)
+        else:
+            if chunk[2] != -1:
+                chunks.append(chunk)
+            chunk = [-1, -1, -1]
+    return chunks
+
+
+def get_entity_bio(seq, id2label=None):
+    """
+    Gets entities from sequence.
+    note: BIO
+    Args:
+        seq (list): sequence of labels.
+    Returns:
+        list: list of (chunk_type, chunk_start, chunk_end).
+    Example:
+        seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
+        get_entity_bio(seq)
+        output:
+        [['PER', 0, 1], ['LOC', 3, 3]]
+    """
+    chunks = []
+    chunk = [-1, -1, -1]
+    for indx, tag in enumerate(seq):
+        if not isinstance(tag, str):
+            tag = id2label[tag]
+        if tag.startswith("B-"):
+            if chunk[2] != -1:
+                chunks.append(chunk)
+            chunk = [-1, -1, -1]
+            chunk[1] = indx
+            chunk[0] = tag.split('-')[1]
+            chunk[2] = indx
+            if indx == len(seq) - 1:
+                chunks.append(chunk)
+        elif tag.startswith('I-') and chunk[1] != -1:
+            _type = tag.split('-')[1]
+            if _type == chunk[0]:
+                chunk[2] = indx
+            if indx == len(seq) - 1:
+                chunks.append(chunk)
+        else:
+            if chunk[2] != -1:
+                chunks.append(chunk)
+            chunk = [-1, -1, -1]
+    return chunks
+
+
+def my_get_entities(seq, id2label=None, markup='bios'):
+    """
+    Get entities from sequence.
+    :param seq: sequence of labels, eg: ['B-PER', 'I-PER', 'O', 'B-LOC']
+    :param id2label: id to label, if seq is id, then id2label is necessary
+    :param markup: bio or bioes
+    :return: chunks: list of (chunk_type, chunk_start, chunk_end).
+        [['PER', 0, 1], ['LOC', 3, 3]]
+    """
+    assert markup in ['bio', 'bios']
+    if markup == 'bio':
+        return get_entity_bio(seq, id2label)
+    else:
+        return get_entity_bios(seq, id2label)

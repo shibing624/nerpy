@@ -24,7 +24,7 @@ from seqeval.metrics import (
 )
 from seqeval.metrics.sequence_labeling import get_entities
 from torch.utils.tensorboard import SummaryWriter
-from torch.nn import CrossEntropyLoss
+import torch.nn as nn
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from tqdm.auto import tqdm, trange
 from transformers import (
@@ -95,11 +95,11 @@ from nerpy.ner_utils import (
     InputExample,
     LazyNERDataset,
     convert_examples_to_features,
-    get_examples_from_df,
     load_hf_dataset,
     read_examples_from_file,
     flatten_results,
 )
+from nerpy.bertspan import BertSpanForTokenClassification, get_span_subject, BertSpanDataset, SpanEntityScore
 
 try:
     import wandb
@@ -158,6 +158,7 @@ class NERModel:
             "albert": (AlbertConfig, AlbertForTokenClassification, AlbertTokenizer),
             "auto": (AutoConfig, AutoModelForTokenClassification, AutoTokenizer),
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
+            "bertspan": (BertConfig, BertSpanForTokenClassification, BertTokenizer),
             "bertweet": (
                 RobertaConfig,
                 RobertaForTokenClassification,
@@ -251,6 +252,9 @@ class NERModel:
                 "B-LOC",
                 "I-LOC",
             ]
+        if model_type in ["bertspan"]:
+            # Bert Span model, no B- tags, delete prefix
+            self.args.labels_list = ['O'] + list(set([i.split('-')[-1] for i in self.args.labels_list if i != 'O']))
         self.num_labels = len(self.args.labels_list)
         logger.debug(f"Using labels list: {self.args.labels_list}")
 
@@ -258,18 +262,14 @@ class NERModel:
             self.args.do_lower_case = True
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
-            self.config = config_class.from_pretrained(
-                model_name, num_labels=self.num_labels, **self.args.config
-            )
+            self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **self.args.config)
             self.num_labels = self.num_labels
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
-            raise ValueError(
-                "{} does not currently support class weights".format(model_type)
-            )
+            raise ValueError("{} does not currently support class weights".format(model_type))
         else:
             self.weight = weight
 
@@ -286,8 +286,12 @@ class NERModel:
                 )
         else:
             self.device = "cpu"
-        logger.debug(f"device: {self.device}")
-        self.loss_fct = init_loss(weight=self.weight, device=self.device, args=self.args)
+        logger.debug(f"Device: {self.device}")
+
+        if self.args.model_type in ["bertspan"]:
+            self.loss_fct = None
+        else:
+            self.loss_fct = init_loss(weight=self.weight, device=self.device, args=self.args)
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -310,22 +314,15 @@ class NERModel:
                     model_path, options, providers=onnx_execution_provider
                 )
         else:
+            quantized_weights = None
             if not self.args.quantized_model:
-                self.model = model_class.from_pretrained(
-                    model_name, config=self.config, **kwargs
-                )
+                self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
             else:
-                quantized_weights = torch.load(
-                    os.path.join(model_name, "pytorch_model.bin")
-                )
-                self.model = model_class.from_pretrained(
-                    None, config=self.config, state_dict=quantized_weights
-                )
+                quantized_weights = torch.load(os.path.join(model_name, "pytorch_model.bin"))
+                self.model = model_class.from_pretrained(None, config=self.config, state_dict=quantized_weights)
 
             if self.args.dynamic_quantize:
-                self.model = torch.quantization.quantize_dynamic(
-                    self.model, {torch.nn.Linear}, dtype=torch.qint8
-                )
+                self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
             if self.args.quantized_model:
                 self.model.load_state_dict(quantized_weights)
             if self.args.dynamic_quantize:
@@ -337,28 +334,20 @@ class NERModel:
             try:
                 from torch.cuda import amp
             except AttributeError:
-                raise AttributeError(
-                    "fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16."
-                )
+                raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args.do_lower_case, **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         if self.args.special_tokens_list:
-            self.tokenizer.add_tokens(
-                self.args.special_tokens_list, special_tokens=True
-            )
+            self.tokenizer.add_tokens(self.args.special_tokens_list, special_tokens=True)
             self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.args.model_name = model_name
         self.args.model_type = model_type
-        self.pad_token_label_id = CrossEntropyLoss().ignore_index
+        self.pad_token_label_id = nn.CrossEntropyLoss().ignore_index
         self.args.use_multiprocessing = False
         if self.args.wandb_project and not wandb_available:
-            warnings.warn(
-                "wandb_project specified but wandb is not available. Wandb disabled."
-            )
+            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args.wandb_project = None
 
     def train_model(
@@ -1073,12 +1062,18 @@ class NERModel:
         pad_token_label_id = self.pad_token_label_id
         eval_output_dir = output_dir
         results = {}
+        id2label = {i: label for i, label in enumerate(self.args.labels_list)}
+        span_metric = SpanEntityScore(id2label)
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
         eval_loss = 0.0
         nb_eval_steps = 0
         preds = None
         out_label_ids = None
+        out_input_ids = None
+        out_attention_mask = None
+        model_outputs = []
+        preds_list = []
         model.eval()
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
@@ -1111,88 +1106,111 @@ class NERModel:
                     tmp_eval_loss = tmp_eval_loss.mean()
                 eval_loss += tmp_eval_loss.item()
             nb_eval_steps += 1
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs["labels"].detach().cpu().numpy()
-                out_input_ids = inputs["input_ids"].detach().cpu().numpy()
-                out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
+
+            if args.model_type in ["bertspan"]:
+                start_pred = torch.argmax(logits[0], -1).cpu().numpy()
+                end_pred = torch.argmax(logits[1], -1).cpu().numpy()
+                outputs = get_span_subject(start_pred, end_pred)
+                logger.debug(f"pred: {outputs}")
+                start_ids = batch[3].tolist()
+                end_ids = batch[4].tolist()
+                true_subject = get_span_subject(start_ids, end_ids)
+                logger.debug(f"true: {true_subject}")
+                span_metric.update(true_subject=true_subject[0], pred_subject=outputs[0])
+                pred_entities = []
+                for i in outputs:
+                    pred = []
+                    for x in i:
+                        pred.append([id2label[x[0]], x[1], x[2]])
+                    pred_entities.append(pred)
+                model_outputs.append(outputs)
+                preds_list.append(pred_entities)
             else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
-                out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
-                out_attention_mask = np.append(out_attention_mask, inputs["attention_mask"].detach().cpu().numpy(),
-                                               axis=0)
+                if preds is None:
+                    preds = logits.detach().cpu().numpy()
+                    out_label_ids = inputs["labels"].detach().cpu().numpy()
+                    out_input_ids = inputs["input_ids"].detach().cpu().numpy()
+                    out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
+                else:
+                    preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                    out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
+                    out_attention_mask = np.append(out_attention_mask,
+                                                   inputs["attention_mask"].detach().cpu().numpy(), axis=0)
         eval_loss = eval_loss / nb_eval_steps
-        token_logits = preds
-        preds = np.argmax(preds, axis=2)
-        label_map = {i: label for i, label in enumerate(self.args.labels_list)}
-        out_label_list = [[] for _ in range(out_label_ids.shape[0])]
-        preds_list = [[] for _ in range(out_label_ids.shape[0])]
-        for i in range(out_label_ids.shape[0]):
-            for j in range(out_label_ids.shape[1]):
-                if out_label_ids[i, j] != pad_token_label_id:
-                    out_label_list[i].append(label_map[out_label_ids[i][j]])
-                    preds_list[i].append(label_map[preds[i][j]])
-        word_tokens = []
-        for i in range(len(preds_list)):
-            w_log = self._convert_tokens_to_word_logits(
-                out_input_ids[i],
-                out_label_ids[i],
-                out_attention_mask[i],
-                token_logits[i],
-            )
-            word_tokens.append(w_log)
-        model_outputs = [
-            [word_tokens[i][j] for j in range(len(preds_list[i]))]
-            for i in range(len(preds_list))
-        ]
-        extra_metrics = {}
-        for metric, func in kwargs.items():
-            if metric.startswith("prob_"):
-                extra_metrics[metric] = func(out_label_list, model_outputs)
-            else:
-                extra_metrics[metric] = func(out_label_list, preds_list)
-        result = {
-            "eval_loss": eval_loss,
-            "precision": precision_score(out_label_list, preds_list),
-            "recall": recall_score(out_label_list, preds_list),
-            "f1_score": f1_score(out_label_list, preds_list),
-            **extra_metrics,
-        }
-        results.update(result)
-
-        os.makedirs(eval_output_dir, exist_ok=True)
-        output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
-        with open(output_eval_file, "w", encoding="utf8") as writer:
-            if args.classification_report:
-                cls_report = classification_report(out_label_list, preds_list, digits=4)
-                writer.write("{}\n".format(cls_report))
-            for key in sorted(result.keys()):
-                writer.write("{} = {}\n".format(key, str(result[key])))
-
-        if self.args.wandb_project and wandb_log:
-            wandb.init(
-                project=args.wandb_project,
-                config={**asdict(args)},
-                **args.wandb_kwargs,
-            )
-            wandb.run._label(repo="nerpy")
-            labels_list = sorted(self.args.labels_list)
-            truth = [tag for out in out_label_list for tag in out]
-            preds = [tag for pred_out in preds_list for tag in pred_out]
-            outputs = [
-                np.mean(logits, axis=0) for output in model_outputs for logits in output
+        if args.model_type in ["bertspan"]:
+            eval_info, entity_info = span_metric.result()
+            result = {"eval_loss": eval_loss}
+            result.update(eval_info)
+        else:
+            token_logits = preds
+            preds = np.argmax(preds, axis=2)
+            out_label_list = [[] for _ in range(out_label_ids.shape[0])]
+            preds_list = [[] for _ in range(out_label_ids.shape[0])]
+            for i in range(out_label_ids.shape[0]):
+                for j in range(out_label_ids.shape[1]):
+                    if out_label_ids[i, j] != pad_token_label_id:
+                        out_label_list[i].append(id2label[out_label_ids[i][j]])
+                        preds_list[i].append(id2label[preds[i][j]])
+            word_tokens = []
+            for i in range(len(preds_list)):
+                w_log = self._convert_tokens_to_word_logits(
+                    out_input_ids[i],
+                    out_label_ids[i],
+                    out_attention_mask[i],
+                    token_logits[i],
+                )
+                word_tokens.append(w_log)
+            model_outputs = [
+                [word_tokens[i][j] for j in range(len(preds_list[i]))]
+                for i in range(len(preds_list))
             ]
-            # ROC
-            wandb.log({"roc": wandb.plots.ROC(truth, outputs, labels_list)})
-            # Precision Recall
-            wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, labels_list)})
-            # Confusion Matrix
-            wandb.sklearn.plot_confusion_matrix(
-                truth,
-                preds,
-                labels=labels_list,
-            )
+            extra_metrics = {}
+            for metric, func in kwargs.items():
+                if metric.startswith("prob_"):
+                    extra_metrics[metric] = func(out_label_list, model_outputs)
+                else:
+                    extra_metrics[metric] = func(out_label_list, preds_list)
+            result = {
+                "eval_loss": eval_loss,
+                "precision": precision_score(out_label_list, preds_list),
+                "recall": recall_score(out_label_list, preds_list),
+                "f1_score": f1_score(out_label_list, preds_list),
+                **extra_metrics,
+            }
+            os.makedirs(eval_output_dir, exist_ok=True)
+            output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
+            with open(output_eval_file, "w", encoding="utf8") as writer:
+                if args.classification_report:
+                    cls_report = classification_report(out_label_list, preds_list, digits=4)
+                    writer.write("{}\n".format(cls_report))
+                for key in sorted(result.keys()):
+                    writer.write("{} = {}\n".format(key, str(result[key])))
+
+            if self.args.wandb_project and wandb_log:
+                wandb.init(
+                    project=args.wandb_project,
+                    config={**asdict(args)},
+                    **args.wandb_kwargs,
+                )
+                wandb.run._label(repo="nerpy")
+                labels_list = sorted(self.args.labels_list)
+                truth = [tag for out in out_label_list for tag in out]
+                preds = [tag for pred_out in preds_list for tag in pred_out]
+                outputs = [
+                    np.mean(logits, axis=0) for output in model_outputs for logits in output
+                ]
+                # ROC
+                wandb.log({"roc": wandb.plots.ROC(truth, outputs, labels_list)})
+                # Precision Recall
+                wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, labels_list)})
+                # Confusion Matrix
+                wandb.sklearn.plot_confusion_matrix(
+                    truth,
+                    preds,
+                    labels=labels_list,
+                )
+        results.update(result)
         return results, model_outputs, preds_list
 
     def predict(self, to_predict, split_on_space=False):
@@ -1201,8 +1219,8 @@ class NERModel:
 
         Args:
             to_predict: A python list of text (str) to be sent to the model for prediction.
-            split_on_space: If True, each sequence will be split by spaces for assigning labels.
-                            If False, to_predict must be a a list of lists, with the inner list being a
+            split_on_space: If True, is english string, each sequence will be split by spaces for assigning labels.
+                            If False, is Chinese string, to_predict must be a a list of lists, the inner list being a
                             list of strings consisting of the split sequences. The outer list is the list of sequences 
                             to predict on.
 
@@ -1215,7 +1233,11 @@ class NERModel:
         model = self.model
         args = self.args
         pad_token_label_id = self.pad_token_label_id
-        preds = None
+        id2label = {i: label for i, label in enumerate(self.args.labels_list)}
+        id2vocab = {v: k for k, v in self.tokenizer.vocab.items()}
+        preds = []
+        model_outputs = []
+        entities = []
 
         if split_on_space:
             predict_examples = [
@@ -1245,7 +1267,7 @@ class NERModel:
 
             # Change shape for batching
             encoded_model_inputs = []
-            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+            if self.args.model_type in ["bert", "bertspan", "xlnet", "albert"]:
                 for (input_ids, attention_mask, token_type_ids) in tqdm(
                         zip(
                             model_inputs["input_ids"],
@@ -1268,7 +1290,7 @@ class NERModel:
                 batch_size=args.eval_batch_size,
             )
             for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
-                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+                if self.args.model_type in ["bert", "bertspan", "xlnet", "albert"]:
                     inputs_onnx = {
                         "input_ids": batch[0].detach().cpu().numpy(),
                         "attention_mask": batch[1].detach().cpu().numpy(),
@@ -1320,7 +1342,6 @@ class NERModel:
             self._move_model_to_device()
             eval_loss = 0.0
             nb_eval_steps = 0
-            preds = None
             out_label_ids = None
             model.eval()
             if args.n_gpu > 1:
@@ -1355,111 +1376,130 @@ class NERModel:
                         tmp_eval_loss = tmp_eval_loss.mean()
                     eval_loss += tmp_eval_loss.item()
                 nb_eval_steps += 1
-                if preds is None:
-                    preds = logits.detach().cpu().numpy()
-                    out_label_ids = inputs["labels"].detach().cpu().numpy()
-                    out_input_ids = inputs["input_ids"].detach().cpu().numpy()
-                    out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
+                if args.model_type in ["bertspan"]:
+                    start_pred = torch.argmax(logits[0], -1).cpu().numpy()
+                    end_pred = torch.argmax(logits[1], -1).cpu().numpy()
+                    outputs = get_span_subject(start_pred, end_pred)
+                    pred = []
+                    entity = []
+                    word_tokens = [[word for word in sentence.split()] for sentence in to_predict] \
+                        if split_on_space else [[word for word in sentence] for sentence in to_predict]
+                    for model_output, sentence in zip(outputs, word_tokens):
+                        p = []
+                        for x in model_output:
+                            if x[2] < len(sentence):
+                                p.append([id2label[x[0]], x[1], x[2]])
+                        pred.extend(p)
+                        line_entities = [(sentence[entity[1]: (entity[2] + 1)], entity[0]) for entity in p if entity]
+                        entity.extend(line_entities)
+                    preds.append(pred)
+                    model_outputs.append(outputs)
+                    entities.append(entity)
                 else:
-                    preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                    out_label_ids = np.append(
-                        out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
-                    )
-                    out_input_ids = np.append(
-                        out_input_ids,
-                        inputs["input_ids"].detach().cpu().numpy(),
-                        axis=0,
-                    )
-                    out_attention_mask = np.append(
-                        out_attention_mask,
-                        inputs["attention_mask"].detach().cpu().numpy(),
-                        axis=0,
-                    )
-            eval_loss = eval_loss / nb_eval_steps
-        token_logits = preds
-        preds = np.argmax(preds, axis=2)
-        label_map = {i: label for i, label in enumerate(self.args.labels_list)}
-        out_label_list = [[] for _ in range(out_label_ids.shape[0])]
-        preds_list = [[] for _ in range(out_label_ids.shape[0])]
-        for i in range(out_label_ids.shape[0]):
-            for j in range(out_label_ids.shape[1]):
-                if out_label_ids[i, j] != pad_token_label_id:
-                    out_label_list[i].append(label_map[out_label_ids[i][j]])
-                    preds_list[i].append(label_map[preds[i][j]])
-        entities = []
-        if split_on_space:
-            preds = [
-                [
-                    {word: preds_list[i][j]}
-                    for j, word in enumerate(sentence.split()[: len(preds_list[i])])
-                ]
-                for i, sentence in enumerate(to_predict)
-            ]
-            for n, pres in enumerate(preds):
-                pairs = []
-                preds_labels = []
-                for pred in pres:
-                    key = list(pred.keys())[0]
-                    preds_labels.append(pred[key])
-                line_entities = get_entities(preds_labels)
-                for i in line_entities:
-                    word = ' '.join(to_predict[n].split()[i[1]: i[2] + 1])
-                    entity_type = i[0]
-                    pairs.append((word, entity_type))
-                entities.append(pairs)
+                    if not preds:
+                        preds = logits.detach().cpu().numpy()
+                        out_label_ids = inputs["labels"].detach().cpu().numpy()
+                        out_input_ids = inputs["input_ids"].detach().cpu().numpy()
+                        out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
+                    else:
+                        preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                        out_label_ids = np.append(
+                            out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
+                        )
+                        out_input_ids = np.append(
+                            out_input_ids,
+                            inputs["input_ids"].detach().cpu().numpy(),
+                            axis=0,
+                        )
+                        out_attention_mask = np.append(
+                            out_attention_mask,
+                            inputs["attention_mask"].detach().cpu().numpy(),
+                            axis=0,
+                        )
+        if args.model_type in ["bertspan"]:
+            pass
         else:
-            preds = [
-                [
-                    {word: preds_list[i][j]}
-                    for j, word in enumerate(sentence[: len(preds_list[i])])
+            token_logits = preds
+            preds = np.argmax(preds, axis=2)
+            out_label_list = [[] for _ in range(out_label_ids.shape[0])]
+            preds_list = [[] for _ in range(out_label_ids.shape[0])]
+            for i in range(out_label_ids.shape[0]):
+                for j in range(out_label_ids.shape[1]):
+                    if out_label_ids[i, j] != pad_token_label_id:
+                        out_label_list[i].append(id2label[out_label_ids[i][j]])
+                        preds_list[i].append(id2label[preds[i][j]])
+            entities = []
+            if split_on_space:
+                preds = [
+                    [
+                        {word: preds_list[i][j]}
+                        for j, word in enumerate(sentence.split()[: len(preds_list[i])])
+                    ]
+                    for i, sentence in enumerate(to_predict)
                 ]
-                for i, sentence in enumerate(to_predict)
-            ]
-            for n, pres in enumerate(preds):
-                pairs = []
-                preds_labels = []
-                for pred in pres:
-                    key = list(pred.keys())[0]
-                    preds_labels.append(pred[key])
-                line_entities = get_entities(preds_labels)
-                for i in line_entities:
-                    word = to_predict[n][i[1]: i[2] + 1]
-                    entity_type = i[0]
-                    pairs.append((word, entity_type))
-                entities.append(pairs)
+                for n, pres in enumerate(preds):
+                    pairs = []
+                    preds_labels = []
+                    for pred in pres:
+                        key = list(pred.keys())[0]
+                        preds_labels.append(pred[key])
+                    line_entities = get_entities(preds_labels)
+                    for i in line_entities:
+                        word = ' '.join(to_predict[n].split()[i[1]: i[2] + 1])
+                        entity_type = i[0]
+                        pairs.append((word, entity_type))
+                    entities.append(pairs)
+            else:
+                preds = [
+                    [
+                        {word: preds_list[i][j]}
+                        for j, word in enumerate(sentence[: len(preds_list[i])])
+                    ]
+                    for i, sentence in enumerate(to_predict)
+                ]
+                for n, pres in enumerate(preds):
+                    pairs = []
+                    preds_labels = []
+                    for pred in pres:
+                        key = list(pred.keys())[0]
+                        preds_labels.append(pred[key])
+                    line_entities = get_entities(preds_labels)
+                    for i in line_entities:
+                        word = to_predict[n][i[1]: i[2] + 1]
+                        entity_type = i[0]
+                        pairs.append((word, entity_type))
+                    entities.append(pairs)
 
-        word_tokens = []
-        for n, sentence in enumerate(to_predict):
-            w_log = self._convert_tokens_to_word_logits(
-                out_input_ids[n],
-                out_label_ids[n],
-                out_attention_mask[n],
-                token_logits[n],
-            )
-            word_tokens.append(w_log)
-        if split_on_space:
-            model_outputs = [
-                [
-                    {word: word_tokens[i][j]}
-                    for j, word in enumerate(sentence.split()[: len(preds_list[i])])
+            word_tokens = []
+            for n, sentence in enumerate(to_predict):
+                w_log = self._convert_tokens_to_word_logits(
+                    out_input_ids[n],
+                    out_label_ids[n],
+                    out_attention_mask[n],
+                    token_logits[n],
+                )
+                word_tokens.append(w_log)
+            if split_on_space:
+                model_outputs = [
+                    [
+                        {word: word_tokens[i][j]}
+                        for j, word in enumerate(sentence.split()[: len(preds_list[i])])
+                    ]
+                    for i, sentence in enumerate(to_predict)
                 ]
-                for i, sentence in enumerate(to_predict)
-            ]
-        else:
-            model_outputs = [
-                [
-                    {word: word_tokens[i][j]}
-                    for j, word in enumerate(sentence[: len(preds_list[i])])
+            else:
+                model_outputs = [
+                    [
+                        {word: word_tokens[i][j]}
+                        for j, word in enumerate(sentence[: len(preds_list[i])])
+                    ]
+                    for i, sentence in enumerate(to_predict)
                 ]
-                for i, sentence in enumerate(to_predict)
-            ]
-
         return preds, model_outputs, entities
 
     def _convert_tokens_to_word_logits(
             self, input_ids, label_ids, attention_mask, logits
     ):
-
         ignore_ids = [
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token),
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token),
@@ -1509,7 +1549,7 @@ class NERModel:
         if not no_cache:
             no_cache = args.no_cache
         mode = "dev" if evaluate else "train"
-        if self.args.use_hf_datasets and data is not None:
+        if self.args.use_hf_datasets and data:
             dataset = load_hf_dataset(
                 data,
                 self.args.labels_list,
@@ -1520,8 +1560,6 @@ class NERModel:
                 cls_token=tokenizer.cls_token_id,
                 cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
                 sep_token=tokenizer.sep_token_id,
-                # RoBERTa uses an extra separator b/w pairs of sentences,
-                # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
                 sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
                 # PAD on the left for XLNet
                 pad_on_left=bool(args.model_type in ["xlnet"]),
@@ -1531,6 +1569,12 @@ class NERModel:
                 silent=args.silent,
                 args=self.args,
             )
+            return dataset
+        elif args.dataset_class:
+            CustomDataset = args.dataset_class
+            return CustomDataset(data, tokenizer, args, mode, to_predict)
+        elif args.model_type in ["bertspan"]:
+            return BertSpanDataset(data, tokenizer, args, mode, to_predict)
         else:
             if not to_predict and isinstance(data, str) and self.args.lazy_loading:
                 dataset = LazyNERDataset(data, tokenizer, self.args)
@@ -1540,20 +1584,18 @@ class NERModel:
                     no_cache = True
                 else:
                     if isinstance(data, str):
-                        examples = read_examples_from_file(
-                            data,
-                            mode,
-                            bbox=True if self.args.model_type == "layoutlm" else False,
-                        )
+                        examples = read_examples_from_file(data, mode)
                     else:
                         if self.args.lazy_loading:
-                            raise ValueError(
-                                "Input must be given as a path to a file when using lazy loading"
+                            raise ValueError("Input must be given as a path to a file when using lazy loading")
+                        examples = [
+                            InputExample(
+                                guid=sentence_id,
+                                words=sentence_df["words"].tolist(),
+                                labels=sentence_df["labels"].tolist(),
                             )
-                        examples = get_examples_from_df(
-                            data,
-                            bbox=True if self.args.model_type == "layoutlm" else False,
-                        )
+                            for sentence_id, sentence_df in data.groupby(["sentence_id"])
+                        ]
 
                 cached_features_file = os.path.join(
                     args.cache_dir,
@@ -1567,17 +1609,12 @@ class NERModel:
                 )
                 if not no_cache:
                     os.makedirs(self.args.cache_dir, exist_ok=True)
-
                 if os.path.exists(cached_features_file) and (
                         (not args.reprocess_input_data and not no_cache)
-                        or (
-                                mode == "dev" and args.use_cached_eval_features and not no_cache
-                        )
+                        or (mode == "dev" and args.use_cached_eval_features and not no_cache)
                 ):
                     features = torch.load(cached_features_file)
-                    logger.info(
-                        f" Features loaded from cache at {cached_features_file}"
-                    )
+                    logger.info(f" Features loaded from cache at {cached_features_file}")
                 else:
                     logger.info(" Converting to features started.")
                     features = convert_examples_to_features(
@@ -1590,8 +1627,6 @@ class NERModel:
                         cls_token=tokenizer.cls_token,
                         cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
                         sep_token=tokenizer.sep_token,
-                        # RoBERTa uses an extra separator b/w pairs of sentences,
-                        # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
                         sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
                         # PAD on the left for XLNet
                         pad_on_left=bool(args.model_type in ["xlnet"]),
@@ -1614,8 +1649,7 @@ class NERModel:
                 if self.args.onnx:
                     return all_label_ids
                 dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-
-        return dataset
+            return dataset
 
     def convert_to_onnx(self, output_dir=None, set_onnx_arg=True):
         """Convert the model to ONNX format and save to output_dir
@@ -1685,15 +1719,25 @@ class NERModel:
             return {key: value.to(self.device) for key, value in batch.items()}
         else:
             batch = tuple(t.to(self.device) for t in batch)
-            inputs = {
-                "input_ids": batch[0],
-                "attention_mask": batch[1],
-                "labels": batch[3],
-            }
-            # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
-            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
-                inputs["token_type_ids"] = batch[2]
-
+            # Set start_ids and end_ids for BertSpan model
+            if self.args.model_type in ["bertspan"]:
+                # all_input_ids, all_input_mask, all_segment_ids, all_start_ids, all_end_ids
+                inputs = {
+                    "input_ids": batch[0],
+                    "attention_mask": batch[1],
+                    "token_type_ids": batch[2],
+                    "start_positions": batch[3],
+                    "end_positions": batch[4],
+                }
+            else:
+                inputs = {
+                    "input_ids": batch[0],
+                    "attention_mask": batch[1],
+                    "labels": batch[3],
+                }
+                # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+                if self.args.model_type in ["bert", "xlnet", "albert"]:
+                    inputs["token_type_ids"] = batch[2]
             return inputs
 
     def _create_training_progress_scores(self, **kwargs):

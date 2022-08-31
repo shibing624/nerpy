@@ -3,7 +3,6 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field, fields
 from multiprocessing import cpu_count
-import warnings
 
 from torch.utils.data import Dataset
 
@@ -51,7 +50,7 @@ class ModelArgs:
     evaluate_during_training_steps: int = 2000
     evaluate_during_training_verbose: bool = False
     evaluate_each_epoch: bool = True
-    fp16: bool = True
+    fp16: bool = False
     gradient_accumulation_steps: int = 1
     learning_rate: float = 4e-5
     local_rank: int = -1
@@ -94,8 +93,8 @@ class ModelArgs:
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
     use_hf_datasets: bool = False
-    use_multiprocessing: bool = True
-    use_multiprocessing_for_evaluation: bool = True
+    use_multiprocessing: bool = False
+    use_multiprocessing_for_evaluation: bool = False
     wandb_kwargs: dict = field(default_factory=dict)
     wandb_project: str = None
     warmup_ratio: float = 0.06
@@ -117,6 +116,8 @@ class ModelArgs:
         }
         if "settings" in args_for_saving["wandb_kwargs"]:
             del args_for_saving["wandb_kwargs"]["settings"]
+        if "dataset_class" in args_for_saving:
+            del args_for_saving["dataset_class"]
         return args_for_saving
 
     def save(self, output_dir):
@@ -146,6 +147,7 @@ class NERArgs(ModelArgs):
 
     model_class: str = "NERModel"
     classification_report: bool = False
+    dataset_class: Dataset = None
     labels_list: list = field(default_factory=list)
     lazy_loading: bool = False
     lazy_loading_start_line: int = 0
