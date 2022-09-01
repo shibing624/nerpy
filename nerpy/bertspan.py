@@ -436,3 +436,17 @@ class SpanEntityScore:
         self.origins.extend(true_subject)
         self.founds.extend(pred_subject)
         self.rights.extend([pre_entity for pre_entity in pred_subject if pre_entity in true_subject])
+
+
+def check_span_labels(labels):
+    """
+    check span labels don't has '-'
+    :param labels:
+    :return:
+    """
+    if not labels:
+        return False
+    for label in labels:
+        if '-' in label:
+            return False
+    return True

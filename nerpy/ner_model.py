@@ -99,7 +99,13 @@ from nerpy.ner_utils import (
     read_examples_from_file,
     flatten_results,
 )
-from nerpy.bertspan import BertSpanForTokenClassification, get_span_subject, BertSpanDataset, SpanEntityScore
+from nerpy.bertspan import (
+    BertSpanForTokenClassification,
+    get_span_subject,
+    BertSpanDataset,
+    SpanEntityScore,
+    check_span_labels
+)
 
 try:
     import wandb
@@ -254,7 +260,8 @@ class NERModel:
             ]
         if model_type in ["bertspan"]:
             # Bert Span model, no B- tags, delete prefix
-            self.args.labels_list = ['O'] + list(set([i.split('-')[-1] for i in self.args.labels_list if i != 'O']))
+            if self.args.labels_list and not check_span_labels(self.args.labels_list):
+                self.args.labels_list = ['O'] + list(set([i.split('-')[-1] for i in self.args.labels_list if i != 'O']))
         self.num_labels = len(self.args.labels_list)
         logger.debug(f"Using labels list: {self.args.labels_list}")
 
