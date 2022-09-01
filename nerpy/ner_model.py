@@ -1237,7 +1237,6 @@ class NERModel:
         args = self.args
         pad_token_label_id = self.pad_token_label_id
         id2label = {i: label for i, label in enumerate(self.args.labels_list)}
-        id2vocab = {v: k for k, v in self.tokenizer.vocab.items()}
         preds = []
         model_outputs = []
         entities = []
@@ -1394,7 +1393,12 @@ class NERModel:
                             if x[2] < len(sentence):
                                 p.append([id2label[x[0]], x[1], x[2]])
                         pred.extend(p)
-                        line_entities = [(sentence[entity[1]: (entity[2] + 1)], entity[0]) for entity in p if entity]
+                        if split_on_space:
+                            line_entities = [(' '.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
+                                             if entity]
+                        else:
+                            line_entities = [(''.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
+                                             if entity]
                         entity.extend(line_entities)
                     preds.append(pred)
                     model_outputs.append(outputs)

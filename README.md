@@ -42,21 +42,24 @@
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
 | BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
-| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 95.95 | - | - | 254 |
+| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 95.95 | 96.06 | 96.01 | 254 |
 
 - 本项目release模型的实体识别评测结果：
 
 | Arch | Backbone | Model Name | CNER(zh) | PEOPLE(zh) | CoNLL-2003(en) | QPS |
 | :-- | :--- | :---- | :-: | :-: | :-: | :-: |
+| BertSpan | bert-base-chinese | shibing624/bertspan4ner-base-chinese | 95.95 | 96.06 | - | 254 |
 | BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | - | 222 |
 | BertSoftmax | bert-base-uncased | shibing624/bert4ner-base-uncased | - | - | 90.43 | 243 |
 
 说明：
 - 结果值均使用F1
 - 结果均只用该数据集的train训练，在test上评估得到的表现，没用外部数据
-- `shibing624/bert4ner-base-chinese`模型达到base级别里SOTA效果，是用BertSoftmax方法训练，
+- `shibing624/bertspan4ner-base-chinese`模型达到base级别里SOTA效果，是用BertSpan方法训练PEOPLE样本集得到的，
+ 运行[examples/training_bertspan_zh_demo.py](examples/training_bertspan_zh_demo.py)代码可在各中文数据集复现结果
+- `shibing624/bert4ner-base-chinese`模型达到base级别里较好效果，是用BertSoftmax方法训练的，
  运行[examples/training_ner_model_zh_demo.py](examples/training_ner_model_zh_demo.py)代码可在各中文数据集复现结果
-- `shibing624/bert4ner-base-uncased`模型是用BertSoftmax方法训练，
+- `shibing624/bert4ner-base-uncased`模型是用BertSoftmax方法训练的，
  运行[examples/training_ner_model_en_demo.py](examples/training_ner_model_en_demo.py)代码可在CoNLL-2003英文数据集复现结果
 - 各预训练模型均可以通过transformers调用，如中文BERT模型：`--model_name bert-base-chinese`
 - 中文实体识别数据集下载[链接见下方](#数据集)
