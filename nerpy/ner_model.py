@@ -1383,26 +1383,22 @@ class NERModel:
                     end_pred = torch.argmax(logits[1], -1).cpu().numpy()
                     input_lens = batch[5].cpu().numpy()
                     outputs = get_span_subject(start_pred, end_pred, input_lens)
-                    pred = []
-                    entity = []
                     word_tokens = [[word for word in sentence.split()] for sentence in to_predict] \
                         if split_on_space else [[word for word in sentence] for sentence in to_predict]
                     for model_output, sentence in zip(outputs, word_tokens):
                         p = []
                         for x in model_output:
                             if x[2] < len(sentence):
-                                p.append([id2label[x[0]], x[1], x[2]])
-                        pred.extend(p)
+                                p.append((id2label[x[0]], x[1], x[2]))
                         if split_on_space:
                             line_entities = [(' '.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
                                              if entity]
                         else:
                             line_entities = [(''.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
                                              if entity]
-                        entity.extend(line_entities)
-                    preds.append(pred)
-                    model_outputs.append(outputs)
-                    entities.append(entity)
+                        preds.append(p)
+                        entities.append(line_entities)
+                    model_outputs.extend(outputs)
                 else:
                     if not preds:
                         preds = logits.detach().cpu().numpy()
