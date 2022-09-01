@@ -246,6 +246,8 @@ class NERModel:
                 "E-ORG", "E-LOC", "S-MISC", "I-MISC", "S-PER", "E-PER", "B-MISC", "O", "S-LOC",
                 "E-MISC", "B-ORG", "S-ORG", "I-ORG", "B-LOC", "I-LOC", "B-PER", "I-PER"
             ]
+        elif 'shibing624/bertspan4ner-base-chinese' == model_name:
+            self.args.labels_list = ["O", "TIME", "PER", "LOC", "ORG"]
         else:
             self.args.labels_list = [
                 "O",

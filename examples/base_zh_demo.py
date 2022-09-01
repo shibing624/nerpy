@@ -6,14 +6,13 @@ This basic example loads a pre-trained model from the web and uses it get entiti
 """
 
 import sys
-from scipy.special import softmax
-import numpy as np
 
 sys.path.append('..')
 from nerpy import NERModel
 
 if __name__ == '__main__':
-    # 中文实体识别模型(BertSoftmax): shibing624/bert4ner-base-chinese
+    # BertSoftmax中文实体识别模型: NERModel("bert", "shibing624/bert4ner-base-chinese")
+    # BertSpan中文实体识别模型: NERModel("bertspan", "shibing624/bertspan4ner-base-chinese")
     model = NERModel("bert", "shibing624/bert4ner-base-chinese")
     sentences = [
         "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
@@ -28,8 +27,3 @@ if __name__ == '__main__':
         print("\n___________________________")
         print("Sentence: ", sentences[n])
         print("Entity: ", entities[n])
-        for pred, out in zip(preds, outs):
-            key = list(pred.keys())[0]
-            new_out = out[key]
-            preds = list(softmax(np.mean(new_out, axis=0)))
-            print(key, pred[key], preds[np.argmax(preds)], preds)

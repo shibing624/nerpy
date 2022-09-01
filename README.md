@@ -55,7 +55,7 @@
 说明：
 - 结果值均使用F1
 - 结果均只用该数据集的train训练，在test上评估得到的表现，没用外部数据
-- `shibing624/bertspan4ner-base-chinese`模型达到base级别里SOTA效果，是用BertSpan方法训练PEOPLE样本集得到的，
+- `shibing624/bertspan4ner-base-chinese`模型达到base级别里SOTA效果，是用BertSpan方法训练的，
  运行[examples/training_bertspan_zh_demo.py](examples/training_bertspan_zh_demo.py)代码可在各中文数据集复现结果
 - `shibing624/bert4ner-base-chinese`模型达到base级别里较好效果，是用BertSoftmax方法训练的，
  运行[examples/training_ner_model_zh_demo.py](examples/training_ner_model_zh_demo.py)代码可在各中文数据集复现结果
@@ -127,7 +127,8 @@ sys.path.append('..')
 from nerpy import NERModel
 
 if __name__ == '__main__':
-    # 中文实体识别模型(BertSoftmax): shibing624/bert4ner-base-chinese
+    # BertSoftmax中文实体识别模型: NERModel("bert", "shibing624/bert4ner-base-chinese")
+    # BertSpan中文实体识别模型: NERModel("bertspan", "shibing624/bertspan4ner-base-chinese")
     model = NERModel("bert", "shibing624/bert4ner-base-chinese")
     sentences = [
         "常建良，男，1963年出生，工科学士，高级工程师，北京物资学院客座副教授",
@@ -147,6 +148,9 @@ output:
 模型库[shibing624/bert4ner-base-chinese](https://huggingface.co/shibing624/bert4ner-base-chinese)，
 是`nerpy.NERModel`指定的默认模型，可以通过上面示例调用，或者如下所示用[transformers库](https://github.com/huggingface/transformers)调用，
 模型自动下载到本机路径：`~/.cache/huggingface/transformers`
+- `shibing624/bertspan4ner-base-chinese`模型是BertSpan方法在中文PEOPLE(人民日报)数据集训练得到的，模型已经上传到huggingface的
+模型库[shibing624/bertspan4ner-base-chinese](https://huggingface.co/shibing624/bertspan4ner-base-chinese)
+
 
 #### Usage (HuggingFace Transformers)
 Without [nerpy](https://github.com/shibing624/nerpy), you can use the model like this: 
