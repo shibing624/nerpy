@@ -28,6 +28,22 @@ def test_get_entity():
     assert pairs == [('特朗普', 'PER'), ('北京', 'LOC')]
 
 
+def test_get_entity_bioes():
+    from seqeval.metrics.sequence_labeling import get_entities
+    seq = ['O', 'O', 'S-ORG', 'O', 'B-LOC', 'I-LOC', 'O']
+    r = get_entities(seq)
+    print(r)
+    assert r == [('ORG', 2, 2), ('LOC', 4, 5)]
+    sent = ['After', 'bowling', 'Somerset', 'at', 'Grace', 'Road']
+    line_entities = get_entities(seq)
+    pairs = []
+    for i in line_entities:
+        word = sent[i[1]: i[2] + 1]
+        entity_type = i[0]
+        pairs.append((word, entity_type))
+    print(pairs)
+    assert pairs == [(['Somerset'], 'ORG'), (['Grace', 'Road'], 'LOC')]
+
 def test_my_get_entity():
     from nerpy.ner_utils import my_get_entities as get_entities
     seq = ['B-PER', 'I-PER', 'I-PER', 'O', 'B-LOC', 'I-LOC', 'O', 'O']

@@ -33,22 +33,23 @@
 
 - 英文实体识别数据集的评测结果：
 
-| Arch | Backbone | Model Name | CoNLL-2003 | 
-| :-- | :--- | :--- | :-: |
-| BertSoftmax | bert-base-uncased | bert4ner-base-uncased | 90.43 |
+| Arch | Backbone | Model Name | CoNLL-2003 | QPS |
+| :-- | :--- | :--- | :-: | :--: |
+| BertSoftmax | bert-base-uncased | bert4ner-base-uncased | 90.43 | 235 | 
+| BertSoftmax | bert-base-cased | bert4ner-base-cased | 91.17 | 235 | 
 
 - 中文实体识别数据集的评测结果：
 
 | Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
 | BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
-| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 95.95 | 96.06 | 96.01 | 254 |
+| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 96.03 | 96.06 | 96.04 | 254 |
 
 - 本项目release模型的实体识别评测结果：
 
 | Arch | Backbone | Model Name | CNER(zh) | PEOPLE(zh) | CoNLL-2003(en) | QPS |
 | :-- | :--- | :---- | :-: | :-: | :-: | :-: |
-| BertSpan | bert-base-chinese | shibing624/bertspan4ner-base-chinese | 95.95 | 96.06 | - | 254 |
+| BertSpan | bert-base-chinese | shibing624/bertspan4ner-base-chinese | 96.03 | 96.06 | - | 254 |
 | BertSoftmax | bert-base-chinese | shibing624/bert4ner-base-chinese | 94.98 | 95.25 | - | 222 |
 | BertSoftmax | bert-base-uncased | shibing624/bert4ner-base-uncased | - | - | 90.43 | 243 |
 

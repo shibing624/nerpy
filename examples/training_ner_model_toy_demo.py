@@ -46,6 +46,7 @@ def main():
         [1, "perform", "O"],
         [1, "NER", "B-MISC"],
     ]
+    labels = ["O", "B-MISC", "I-MISC"]
     test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
 
     # Create a NERModel
@@ -54,6 +55,7 @@ def main():
         "bert-base-cased",
         args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1},
         use_cuda=False,
+        labels=labels,
     )
 
     # Train the model

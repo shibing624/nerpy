@@ -267,8 +267,10 @@ class NERModel:
         self.num_labels = len(self.args.labels_list)
         logger.debug(f"Using labels list: {self.args.labels_list}")
 
-        if 'uncased' in model_name:
+        if 'uncased' in model_name and not self.args.do_lower_case:
             self.args.do_lower_case = True
+            logger.warning(f"Set do_lower_case=True for {model_name}")
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
             self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **self.args.config)
