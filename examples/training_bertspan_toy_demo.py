@@ -4,17 +4,13 @@
 @description: 
 """
 import sys
-import numpy as np
 import pandas as pd
-from scipy.special import softmax
 
 sys.path.append('..')
 from nerpy.ner_model import NERModel
-from nerpy.bertspan import BertSpanDataset
 
 
 def main():
-    # Creating samples
     # Creating samples
     train_samples = [
         [0, "HuggingFace", "B-MISC"],
@@ -55,7 +51,7 @@ def main():
     # Create a NERModel
     model = NERModel(
         "bertspan",
-        "bert-base-uncased",
+        "bert-base-cased",
         args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1, },
         use_cuda=False,
         labels=labels,

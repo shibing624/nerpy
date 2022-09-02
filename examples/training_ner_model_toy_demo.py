@@ -51,7 +51,7 @@ def main():
     # Create a NERModel
     model = NERModel(
         "bert",
-        "bert-base-uncased",
+        "bert-base-cased",
         args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1},
         use_cuda=False,
     )

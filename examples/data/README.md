@@ -58,8 +58,11 @@ The overall performance of BERT on **test**:
 | ------------ | ------------------ | ------------------ | ------------------ |
 | BERT+Softmax | 0.9425     | 0.9627   | 0.9525     |
 
-## Conll-2003
-英文CONLL03实体识别数据集
+## CoNLL03
+英文CoNLL-2003实体识别数据集
+
+CoNLL-2003 dataset: [Introduction to the CoNLL-2003 Shared Task: Language-Independent Named Entity Recognition](https://paperswithcode.com/dataset/conll-2003)
+
 
 data set is from [here](https://github.com/hankcs/HanLP/blob/doc-zh/hanlp/datasets/ner/conll03.py)
 ```python
@@ -90,10 +93,13 @@ Peter	B-PER
 Blackburn	E-PER
 ```
 
-### CONLL03 result
+### CoNLL03 result
 
-The overall performance of BERT on **test**:
+The overall performance of BertSoftmax on **test**:
 
 |              | Accuracy  | Recall    | F1  |
 | ------------ | ------------------ | ------------------ | ------------------ |
 | BERT+Softmax | 0.8956     | 0.9132   | 0.9043     |
+
+
+NER on CoNLL 2003(English) Leaderboard: https://paperswithcode.com/sota/named-entity-recognition-ner-on-conll-2003

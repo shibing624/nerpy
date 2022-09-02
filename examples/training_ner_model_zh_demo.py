@@ -24,11 +24,11 @@ def main():
     parser.add_argument('--model_name', default='bert-base-chinese', type=str, help='Transformers model or path')
     parser.add_argument('--do_train', action='store_true', help='Whether to run training.')
     parser.add_argument('--do_predict', action='store_true', help='Whether to run predict.')
-    parser.add_argument('--output_dir', default='./outputs/bertsoftmax_model', type=str, help='Model output directory')
-    parser.add_argument('--best_model_dir', default='./outputs/best_bertsoftmax_model/', type=str,
+    parser.add_argument('--output_dir', default='./outputs/cner_bertsoftmax/', type=str, help='Model output directory')
+    parser.add_argument('--best_model_dir', default='./outputs/cner_bertsoftmax/best_model/', type=str,
                         help='Model output directory')
     parser.add_argument('--max_seq_length', default=128, type=int, help='Max sequence length')
-    parser.add_argument('--num_epochs', default=4, type=int, help='Number of training epochs')
+    parser.add_argument('--num_epochs', default=10, type=int, help='Number of training epochs')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size')
     args = parser.parse_args()
     logger.info(args)

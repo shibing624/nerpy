@@ -5,11 +5,9 @@
 """
 import argparse
 import sys
-import numpy as np
 import pandas as pd
 from loguru import logger
 import time
-from scipy.special import softmax
 
 sys.path.append('..')
 from nerpy.ner_model import NERModel
@@ -20,15 +18,15 @@ def main():
     parser = argparse.ArgumentParser('NER task')
     parser.add_argument('--task_name', default='conll03', const='conll03', nargs='?',
                         choices=['conll03'], help='task name of dataset')
-    parser.add_argument('--model_type', default='bert', type=str, help='Transformers model type')
+    parser.add_argument('--model_type', default='bertspan', type=str, help='Transformers model type')
     parser.add_argument('--model_name', default='bert-base-cased', type=str, help='Transformers model or path')
     parser.add_argument('--do_train', action='store_true', help='Whether to run training.')
     parser.add_argument('--do_predict', action='store_true', help='Whether to run predict.')
-    parser.add_argument('--output_dir', default='./outputs/conll03_bertsoftmax/', type=str, help='Model output directory')
-    parser.add_argument('--best_model_dir', default='./outputs/conll03_bertsoftmax/best_model/', type=str,
+    parser.add_argument('--output_dir', default='./outputs/conll03_bertspan/', type=str, help='Model output directory')
+    parser.add_argument('--best_model_dir', default='./outputs/conll03_bertspan/best_model/', type=str,
                         help='Model output directory')
     parser.add_argument('--max_seq_length', default=128, type=int, help='Max sequence length')
-    parser.add_argument('--num_epochs', default=6, type=int, help='Number of training epochs')
+    parser.add_argument('--num_epochs', default=10, type=int, help='Number of training epochs')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size')
     args = parser.parse_args()
     logger.info(args)
@@ -87,16 +85,6 @@ def main():
         ]
         predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
         print(predictions, entities)
-
-        # More detailed predictions
-        for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
-            print("\n___________________________")
-            print("Sentence: ", sentences[n])
-            print("Entity: ", entities[n])
-            for pred, out in zip(preds, outs):
-                key = list(pred.keys())[0]
-                preds = list(softmax(np.mean(out[key], axis=0)))
-                print(key, pred[key], preds[np.argmax(preds)])
 
 
 if __name__ == '__main__':
