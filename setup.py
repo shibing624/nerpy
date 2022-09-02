@@ -40,7 +40,7 @@ setup(
     keywords='NER,nerpy,Chinese Named Entity Recognition Tool,ner,bert,bert2tag',
     install_requires=[
         "loguru",
-        "transformers>=4.6.0",
+        "transformers",
         "datasets",
         "tqdm",
         "scipy",
@@ -51,5 +51,5 @@ setup(
     ],
     packages=find_packages(exclude=['tests']),
     package_dir={'nerpy': 'nerpy'},
-    package_data={'nerpy': ['*.*', 'data/*.txt']}
+    package_data={'nerpy': ['*.*',]}
 )
