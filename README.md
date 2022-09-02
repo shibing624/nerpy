@@ -157,7 +157,7 @@ Without [nerpy](https://github.com/shibing624/nerpy), you can use the model like
 
 First, you pass your input through the transformer model, then you have to apply the bio tag to get the entity words.
 
-example: [examples/use_origin_transformers_demo.py](examples/use_origin_transformers_demo.py)
+example: [examples/predict_use_origin_transformers_zh_demo.py](examples/predict_use_origin_transformers_zh_demo.py)
 
 ```python
 import os
