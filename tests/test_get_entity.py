@@ -7,8 +7,6 @@ import sys
 
 sys.path.append('..')
 
-from nerpy.ner_model import NERModel
-
 
 def test_get_entity():
     from seqeval.metrics.sequence_labeling import get_entities
@@ -43,6 +41,7 @@ def test_get_entity_bioes():
         pairs.append((word, entity_type))
     print(pairs)
     assert pairs == [(['Somerset'], 'ORG'), (['Grace', 'Road'], 'LOC')]
+
 
 def test_my_get_entity():
     from nerpy.ner_utils import my_get_entities as get_entities

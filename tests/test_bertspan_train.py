@@ -4,13 +4,11 @@
 @description: 
 """
 import sys
-import numpy as np
 import pandas as pd
-from scipy.special import softmax
 
 sys.path.append('..')
 
-from nerpy.ner_model import NERModel
+from nerpy import NERModel
 
 
 def test_my_bertspan_train():
@@ -39,12 +37,14 @@ def test_my_bertspan_train():
         [0, "for", "O"],
         [0, "text", "O"],
         [0, "classification", "B-MISC"],
+        [1, "the", "O"],
         [1, "Nerpy", "B-MISC"],
         [1, "Model", "I-MISC"],
         [1, "then", "O"],
         [1, "expanded", "O"],
         [1, "to", "O"],
         [1, "perform", "O"],
+        [1, "good", "O"],
         [1, "NER", "B-MISC"],
     ]
     test_data = pd.DataFrame(test_samples, columns=["sentence_id", "words", "labels"])
@@ -52,8 +52,8 @@ def test_my_bertspan_train():
     # Create a NERModel
     model = NERModel(
         "bertspan",
-        "bert-base-uncased",
-        args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1},
+        "bert-base-cased",
+        args={"overwrite_output_dir": True, "reprocess_input_data": True, "num_train_epochs": 1, },
         use_cuda=False,
         labels=labels,
     )
@@ -68,4 +68,5 @@ def test_my_bertspan_train():
     # Predictions on text strings
     sentences = ["Nerpy Model perform sentence NER", "HuggingFace Transformers build for text"]
     predictions, raw_outputs, entities = model.predict(sentences, split_on_space=True)
-    print(predictions, entities)
+    print(predictions, raw_outputs, entities)
+    assert predictions is not None
