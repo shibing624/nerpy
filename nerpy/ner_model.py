@@ -1248,7 +1248,8 @@ class NERModel:
         args = self.args
         pad_token_label_id = self.pad_token_label_id
         id2label = {i: label for i, label in enumerate(self.args.labels_list)}
-        preds = []
+        preds = None
+        span_preds = []
         model_outputs = []
         entities = []
 
@@ -1407,11 +1408,12 @@ class NERModel:
                         else:
                             line_entities = [(''.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
                                              if entity]
-                        preds.append(p)
+                        span_preds.append(p)
                         entities.append(line_entities)
                     model_outputs.extend(outputs)
                 else:
-                    if not preds:
+                    # logger.debug(f'preds:{preds}')
+                    if preds is None:
                         preds = logits.detach().cpu().numpy()
                         out_label_ids = inputs["labels"].detach().cpu().numpy()
                         out_input_ids = inputs["input_ids"].detach().cpu().numpy()
@@ -1432,7 +1434,7 @@ class NERModel:
                             axis=0,
                         )
         if args.model_type in ["bertspan"]:
-            pass
+            preds = span_preds
         else:
             token_logits = preds
             preds = np.argmax(preds, axis=2)

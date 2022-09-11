@@ -4,4 +4,4 @@
 @description: version
 """
 
-__version__ = '0.0.7'
+__version__ = '0.1.0'
