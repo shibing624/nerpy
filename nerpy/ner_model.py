@@ -1412,7 +1412,6 @@ class NERModel:
                         entities.append(line_entities)
                     model_outputs.extend(outputs)
                 else:
-                    # logger.debug(f'preds:{preds}')
                     if preds is None:
                         preds = logits.detach().cpu().numpy()
                         out_label_ids = inputs["labels"].detach().cpu().numpy()
