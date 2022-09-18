@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from transformers import BertPreTrainedModel, BertModel
 from torch.utils.data import Dataset
 from seqeval.metrics.sequence_labeling import get_entities
+from nerpy.ner_utils import InputExample
 
 
 class FeedForwardNetwork(nn.Module):
@@ -128,30 +129,6 @@ def get_span_subject(start_ids, end_ids, input_lens=None):
     return subjects
 
 
-class InputExample(object):
-    """A single training/test example for token classification."""
-
-    def __init__(
-            self,
-            guid,
-            words,
-            subject=None,
-            tokenized_word_ids=None,
-    ):
-        """Constructs a InputExample.
-        Args:
-            guid: Unique id for the example.
-            words: list. The words of the sequence.
-            subject: list. The labels for each word of the sequence. This should be
-            specified for train and dev examples, but not for test examples.
-            tokenized_word_ids: (Optional) list. Tokenized words converted to input_ids
-        """
-        self.guid = guid
-        self.words = words
-        self.subject = subject
-        self.tokenized_word_ids = tokenized_word_ids
-
-
 class InputFeatures(object):
     """A single set of features of data."""
 
@@ -182,8 +159,13 @@ def convert_example_to_feature(
         mask_padding_with_zero,
         return_input_feature=True,
 ):
+    """Converts a single `InputExample` into a single `InputFeatures`."""
+    start_label_map = {f'B-{k}': v for k, v in label_map.items()}
+    end_label_map = {f'I-{k}': v for k, v in label_map.items()}
     tokens = []
-    for i, word in enumerate(example.words):
+    start_ids = []
+    end_ids = []
+    for i, (word, label) in enumerate(zip(example.words, example.labels)):
         if example.tokenized_word_ids is None:
             word_tokens = tokenizer.tokenize(word)
         else:
@@ -194,16 +176,12 @@ def convert_example_to_feature(
         else:
             word_tokens = tokenizer.tokenize(tokenizer.unk_token)
             tokens.extend(word_tokens)
-
-    start_ids = [pad_token] * len(tokens)
-    end_ids = [pad_token] * len(tokens)
-    if hasattr(example, 'subject') and example.subject:
-        for subj in example.subject:
-            subject_label = subj[0]
-            start = subj[1]
-            end = subj[2]
-            start_ids[start] = label_map[subject_label]
-            end_ids[end] = label_map[subject_label]
+        start_ids.extend(
+            [start_label_map.get(label, pad_token_label_id)] + [pad_token_label_id] * (len(word_tokens) - 1)
+        )
+        end_ids.extend(
+            [pad_token_label_id] * (len(word_tokens) - 1) + [end_label_map.get(label, pad_token_label_id)]
+        )
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
     if len(tokens) > max_seq_length - special_tokens_count:
@@ -229,24 +207,24 @@ def convert_example_to_feature(
     # used as as the "sentence vector". Note that this only makes sense because
     # the entire model is fine-tuned.
     tokens += [sep_token]
-    start_ids += [pad_token]
-    end_ids += [pad_token]
+    start_ids += [pad_token_label_id]
+    end_ids += [pad_token_label_id]
     if sep_token_extra:
         # roberta uses an extra separator b/w pairs of sentences
         tokens += [sep_token]
-        start_ids += [pad_token]
-        end_ids += [pad_token]
+        start_ids += [pad_token_label_id]
+        end_ids += [pad_token_label_id]
     segment_ids = [sequence_a_segment_id] * len(tokens)
 
     if cls_token_at_end:
         tokens += [cls_token]
-        start_ids += [pad_token]
-        end_ids += [pad_token]
+        start_ids += [pad_token_label_id]
+        end_ids += [pad_token_label_id]
         segment_ids += [cls_token_segment_id]
     else:
         tokens = [cls_token] + tokens
-        start_ids = [pad_token] + start_ids
-        end_ids = [pad_token] + end_ids
+        start_ids = [pad_token_label_id] + start_ids
+        end_ids = [pad_token_label_id] + end_ids
         segment_ids = [cls_token_segment_id] + segment_ids
 
     if example.tokenized_word_ids is None:
@@ -264,14 +242,14 @@ def convert_example_to_feature(
         input_ids = ([pad_token] * padding_length) + input_ids
         input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
         segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
-        start_ids = ([pad_token] * padding_length) + start_ids
-        end_ids = ([pad_token] * padding_length) + end_ids
+        start_ids = ([pad_token_label_id] * padding_length) + start_ids
+        end_ids = ([pad_token_label_id] * padding_length) + end_ids
     else:
         input_ids += [pad_token] * padding_length
         input_mask += [0 if mask_padding_with_zero else 1] * padding_length
         segment_ids += [pad_token_segment_id] * padding_length
-        start_ids += [pad_token] * padding_length
-        end_ids += [pad_token] * padding_length
+        start_ids += [pad_token_label_id] * padding_length
+        end_ids += [pad_token_label_id] * padding_length
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
@@ -313,7 +291,7 @@ def read_examples_from_file(data_file, mode):
                         InputExample(
                             guid="{}-{}".format(mode, guid_index),
                             words=words,
-                            subject=get_entities(labels),
+                            labels=labels,
                         )
                     )
                     guid_index += 1
@@ -332,7 +310,7 @@ def read_examples_from_file(data_file, mode):
                 InputExample(
                     guid="%s-%d".format(mode, guid_index),
                     words=words,
-                    subject=get_entities(labels),
+                    labels=labels,
                 )
             )
     return examples
@@ -343,7 +321,7 @@ def get_examples_from_df(data):
         InputExample(
             guid=sentence_id,
             words=sentence_df["words"].tolist(),
-            subject=get_entities(sentence_df["labels"].tolist()),
+            labels=sentence_df["labels"].tolist(),
         )
         for sentence_id, sentence_df in data.groupby(["sentence_id"])
     ]
@@ -363,7 +341,6 @@ class BertSpanDataset(Dataset):
         self.tokenizer = tokenizer
         self.args = args
         self.pad_token_id = tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0]
-        self.pad_token_label_id = nn.CrossEntropyLoss().ignore_index
         self.label_map = {label: i for i, label in enumerate(self.args.labels_list)}
         self.mode = mode
 
@@ -382,7 +359,7 @@ class BertSpanDataset(Dataset):
             pad_on_left=False,
             pad_token=self.pad_token_id,
             pad_token_segment_id=0,
-            pad_token_label_id=self.pad_token_label_id,
+            pad_token_label_id=self.pad_token_id,
             sequence_a_segment_id=0,
             mask_padding_with_zero=True,
             return_input_feature=True

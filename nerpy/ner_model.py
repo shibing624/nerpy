@@ -1403,11 +1403,13 @@ class NERModel:
                             if x[2] < len(sentence):
                                 p.append((id2label[x[0]], x[1], x[2]))
                         if split_on_space:
-                            line_entities = [(' '.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
-                                             if entity]
+                            line_entities = [
+                                (' '.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p if entity
+                            ]
                         else:
-                            line_entities = [(''.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p
-                                             if entity]
+                            line_entities = [
+                                (''.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p if entity
+                            ]
                         span_preds.append(p)
                         entities.append(line_entities)
                     model_outputs.extend(outputs)

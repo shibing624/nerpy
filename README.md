@@ -40,10 +40,10 @@
 
 - 中文实体识别数据集的评测结果：
 
-| Arch | Backbone | Model Name | CNER | PEOPLE | Avg | QPS |
+| Arch | Backbone | Model Name | CNER | PEOPLE | MSRA-NER | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 95.12 | 222 |
-| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 96.03 | 96.06 | 96.04 | 254 |
+| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | - | 222 |
+| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 96.03 | 96.06 | - | 254 |
 
 - 本项目release模型的实体识别评测结果：
 
@@ -217,7 +217,9 @@ Sentence entity:
 | :------- | :--------- | :---------: | :---------: |
 | **`CNER中文实体识别数据集`** | CNER(12万字) | [CNER github](https://github.com/shibing624/nerpy/tree/main/examples/data/cner)| 1.1MB |
 | **`PEOPLE中文实体识别数据集`** | 人民日报数据集（200万字） | [PEOPLE github](https://github.com/shibing624/nerpy/tree/main/examples/data/people)| 12.8MB |
+| **`MSRA-NER中文实体识别数据集`** | MSRA-NER数据集（4.6万条，221.6万字） | [MSRA-NER github](https://github.com/shibing624/nerpy/releases/download/0.1.0/msra_ner.tar.gz)| 3.6MB |
 | **`CoNLL03英文实体识别数据集`** | CoNLL-2003数据集（22万字） | [CoNLL03 github](https://github.com/shibing624/nerpy/tree/main/examples/data/conll03)| 1.7MB |
+
 
 CNER中文实体识别数据集，数据格式：
 
