@@ -25,6 +25,13 @@ def main():
         [1, "now", "O"],
         [1, "perform", "O"],
         [1, "NER", "B-MISC"],
+        [2, "Lucy's", "O"],
+        [2, "Nerpy", "B-MISC"],
+        [2, "Model", "I-MISC"],
+        [2, "can", "O"],
+        [2, "now", "O"],
+        [2, "perform", "O"],
+        [2, "NER", "B-MISC"],
     ]
     train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
 
