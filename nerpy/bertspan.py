@@ -160,11 +160,11 @@ def convert_example_to_feature(
         return_input_feature=True,
 ):
     """Converts a single `InputExample` into a single `InputFeatures`."""
-    entities = get_entities(example.labels)
     tokens = []
-    label_ids = []
-    add_map = {}
-    for i, (word, label) in enumerate(zip(example.words, example.labels)):
+    start_ids = []
+    end_ids = []
+    entities = get_entities(example.labels)
+    for i, word in enumerate(example.words):
         if example.tokenized_word_ids is None:
             word_tokens = tokenizer.tokenize(word)
         else:
@@ -175,38 +175,22 @@ def convert_example_to_feature(
         else:
             word_tokens = tokenizer.tokenize(tokenizer.unk_token)
             tokens.extend(word_tokens)
-        label_ids.extend([pad_token_label_id] + [1] * (len(word_tokens) - 1))
-        if len(word_tokens) > 1:
-            idx = len(label_ids) - len(word_tokens) + 1
-            add_map[idx] = len(word_tokens) - 1
-    start_ids = [pad_token_label_id] * len(tokens)
-    end_ids = [pad_token_label_id] * len(tokens)
-    pan_size = 0
-    old_start = 0
-    for idx, entity in enumerate(entities):
-        _label = entity[0]
-        start = entity[1]
-        end = entity[2]
-        start += pan_size
-        end += pan_size
-        before_add_len = 0
-        for i in range(old_start, start + 1):
-            before_add_len += add_map.get(i, 0)
-        start += before_add_len
-        end += before_add_len
-        mid_add_len = 0
-        for i in range(start + 1, end + 1):
-            mid_add_len += add_map.get(i, 0)
-        end += mid_add_len
-        if idx == len(entities) - 1:
-            after_add_len = 0
-            for i in range(end + 1, len(tokens) + 1):
-                after_add_len += add_map.get(i, 0)
-            end += after_add_len
-        start_ids[start] = label_map[_label]
-        end_ids[end] = label_map[_label]
-        pan_size += (before_add_len + mid_add_len)
-        old_start = end
+        is_start_added = False
+        is_end_added = False
+        for entity in entities:
+            _label = entity[0]
+            start = entity[1]
+            end = entity[2]
+            if i == start:
+                start_ids.extend([label_map[_label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+                is_start_added = True
+            if i == end:
+                end_ids.extend([pad_token_label_id] * (len(word_tokens) - 1) + [label_map[_label]])
+                is_end_added = True
+        if not is_start_added:
+            start_ids.extend([pad_token_label_id] * len(word_tokens))
+        if not is_end_added:
+            end_ids.extend([pad_token_label_id] * len(word_tokens))
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
     if len(tokens) > max_seq_length - special_tokens_count:

@@ -32,6 +32,18 @@ def main():
         [2, "now", "O"],
         [2, "perform", "O"],
         [2, "NER", "B-MISC"],
+        [3, "Andrea", "B-MISC"],
+        [3, "Gaudenzi", "I-MISC"],
+        [3, "(", "O"],
+        [3, "Italy", "B-MISC"],
+        [3, ")", "O"],
+        [3, "beat", "O"],
+        [3, "Shuzo", "B-MISC"],
+        [3, "Matsuoka", "I-MISC"],
+        [3, "(", "O"],
+        [3, "Japan", "B-MISC"],
+        [3, ")", "O"],
+        [3, "7-6", "O"],
     ]
     train_data = pd.DataFrame(train_samples, columns=["sentence_id", "words", "labels"])
 
