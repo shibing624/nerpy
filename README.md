@@ -38,7 +38,7 @@
 | BertSoftmax | bert-base-uncased | bert4ner-base-uncased | 90.43 | 235 |
 | BertSoftmax | bert-base-cased | bert4ner-base-cased | 91.17 | 235 |
 | BertSpan | bert-base-uncased | bertspan4ner-base-uncased | 90.61 | 210 |
-| BertSpan | bert-base-cased | bertspan4ner-base-cased | 86.83 | 210 |
+| BertSpan | bert-base-cased | bertspan4ner-base-cased | 91.90 | 224 |
 
 - 中文实体识别数据集的评测结果：
 
