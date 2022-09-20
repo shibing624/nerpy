@@ -35,15 +35,17 @@
 
 | Arch | Backbone | Model Name | CoNLL-2003 | QPS |
 | :-- | :--- | :--- | :-: | :--: |
-| BertSoftmax | bert-base-uncased | bert4ner-base-uncased | 90.43 | 235 | 
-| BertSoftmax | bert-base-cased | bert4ner-base-cased | 91.17 | 235 | 
+| BertSoftmax | bert-base-uncased | bert4ner-base-uncased | 90.43 | 235 |
+| BertSoftmax | bert-base-cased | bert4ner-base-cased | 91.17 | 235 |
+| BertSpan | bert-base-uncased | bertspan4ner-base-uncased | 90.61 | 210 |
+| BertSpan | bert-base-cased | bertspan4ner-base-cased | 86.83 | 210 |
 
 - 中文实体识别数据集的评测结果：
 
 | Arch | Backbone | Model Name | CNER | PEOPLE | MSRA-NER | QPS |
 | :-- | :--- | :--- | :-: | :-: | :-: | :-: |
-| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | - | 222 |
-| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 96.03 | 96.06 | - | 254 |
+| BertSoftmax | bert-base-chinese | bert4ner-base-chinese | 94.98 | 95.25 | 94.65 | 222 |
+| BertSpan | bert-base-chinese | bertspan4ner-base-chinese | 96.03 | 96.06 | 95.03 | 254 |
 
 - 本项目release模型的实体识别评测结果：
 
@@ -395,7 +397,7 @@ version = {0.0.2}
 项目代码还很粗糙，如果大家对代码有所改进，欢迎提交回本项目，在提交之前，注意以下两点：
 
  - 在`tests`添加相应的单元测试
- - 使用`python -m pytest -v`来运行所有单元测试，确保所有单测都是通过的
+ - 使用`python -m pytest`来运行所有单元测试，确保所有单测都是通过的
 
 之后即可提交PR。
 
