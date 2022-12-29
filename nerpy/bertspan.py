@@ -3,13 +3,13 @@
 @author:XuMing(xuming624@qq.com)
 @description: BertSpan Model
 """
-from collections import Counter
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import BertPreTrainedModel, BertModel
 from torch.utils.data import Dataset
 from seqeval.metrics.sequence_labeling import get_entities
+from collections import Counter
 from nerpy.ner_utils import InputExample
 
 
