@@ -278,7 +278,7 @@ def convert_examples_to_features(
         tokenizer,
         cls_token_at_end=False,
         cls_token="[CLS]",
-        cls_token_segment_id=1,
+        cls_token_segment_id=0,
         sep_token="[SEP]",
         sep_token_extra=False,
         pad_on_left=False,
@@ -300,7 +300,6 @@ def convert_examples_to_features(
         - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
     `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
     """
-
     label_map = {label: i for i, label in enumerate(label_list)}
 
     if (mode == "train" and use_multiprocessing) or (
