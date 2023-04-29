@@ -4,7 +4,6 @@
 @description: Named entity recognition fine-tuning: utilities to work with CoNLL-2003 task.
 """
 import collections
-from loguru import logger
 import math
 import os
 import random
@@ -16,6 +15,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
+from loguru import logger
 from seqeval.metrics import (
     classification_report,
     f1_score,
@@ -23,9 +24,8 @@ from seqeval.metrics import (
     recall_score,
 )
 from seqeval.metrics.sequence_labeling import get_entities
-from torch.utils.tensorboard import SummaryWriter
-import torch.nn as nn
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm, trange
 from transformers import (
     AlbertConfig,
@@ -57,12 +57,12 @@ from transformers import (
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
-    MPNetConfig,
-    MPNetForTokenClassification,
-    MPNetTokenizer,
     MobileBertConfig,
     MobileBertForTokenClassification,
     MobileBertTokenizer,
+    MPNetConfig,
+    MPNetForTokenClassification,
+    MPNetTokenizer,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizerFast,
@@ -71,40 +71,41 @@ from transformers import (
     SqueezeBertTokenizer,
     XLMConfig,
     XLMForTokenClassification,
-    XLMTokenizer,
     XLMRobertaConfig,
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
+    XLMTokenizer,
     XLNetConfig,
     XLNetForTokenClassification,
     XLNetTokenizerFast,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
-from transformers.optimization import AdamW, Adafactor
 from transformers.optimization import (
+    Adafactor,
+    AdamW,
     get_constant_schedule,
     get_constant_schedule_with_warmup,
-    get_linear_schedule_with_warmup,
     get_cosine_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
     get_polynomial_decay_schedule_with_warmup,
 )
 
-from nerpy.model_args import NERArgs
+from nerpy.bertspan import (
+    BertSpanDataset,
+    BertSpanForTokenClassification,
+    SpanEntityScore,
+    check_span_labels,
+    get_span_subject,
+)
 from nerpy.losses import init_loss
+from nerpy.model_args import NERArgs
 from nerpy.ner_utils import (
     InputExample,
     LazyNERDataset,
     convert_examples_to_features,
+    flatten_results,
     load_hf_dataset,
     read_examples_from_file,
-    flatten_results,
-)
-from nerpy.bertspan import (
-    BertSpanForTokenClassification,
-    get_span_subject,
-    BertSpanDataset,
-    SpanEntityScore,
-    check_span_labels
 )
 
 try:
@@ -130,34 +131,34 @@ use_cuda = torch.cuda.is_available()
 
 class NERModel:
     def __init__(
-            self,
-            model_type,
-            model_name,
-            labels=None,
-            weight=None,
-            args=None,
-            use_cuda=use_cuda,
-            cuda_device=-1,
-            onnx_execution_provider=None,
-            **kwargs,
+        self,
+        model_type,
+        model_name,
+        labels=None,
+        weight=None,
+        args=None,
+        use_cuda=use_cuda,
+        cuda_device=-1,
+        onnx_execution_provider=None,
+        **kwargs,
     ):
         """
         Initializes a NERModel
 
         Args:
             model_type: The type of model (bert, roberta)
-            model_name: Default Transformer model name or path to a directory containing Transformer 
+            model_name: Default Transformer model name or path to a directory containing Transformer
                 model file (pytorch_model.bin).
-            labels (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC", 
+            labels (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC",
                 "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"] will be used.
-            weight (optional): A `torch.Tensor`, `numpy.ndarray` or list.  The weight to be applied to each class 
+            weight (optional): A `torch.Tensor`, `numpy.ndarray` or list.  The weight to be applied to each class
                 when computing the loss of the model.
-            args (optional): Default args will be used if this parameter is not provided. If provided, it should be 
+            args (optional): Default args will be used if this parameter is not provided. If provided, it should be
                 a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
             onnx_execution_provider (optional): The execution provider to use for ONNX export.
-            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other 
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other
                 options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
         MODEL_CLASSES = {
@@ -237,16 +238,39 @@ class NERModel:
             self.args.labels_list = labels
         elif self.args.labels_list:
             pass
-        elif 'shibing624/bert4ner-base-chinese' == model_name:
+        elif "shibing624/bert4ner-base-chinese" == model_name:
             self.args.labels_list = [
-                'I-ORG', 'B-LOC', 'O', 'B-ORG', 'I-LOC', 'I-PER', 'B-TIME', 'I-TIME', 'B-PER'
+                "I-ORG",
+                "B-LOC",
+                "O",
+                "B-ORG",
+                "I-LOC",
+                "I-PER",
+                "B-TIME",
+                "I-TIME",
+                "B-PER",
             ]
-        elif 'shibing624/bert4ner-base-uncased' == model_name:
+        elif "shibing624/bert4ner-base-uncased" == model_name:
             self.args.labels_list = [
-                "E-ORG", "E-LOC", "S-MISC", "I-MISC", "S-PER", "E-PER", "B-MISC", "O", "S-LOC",
-                "E-MISC", "B-ORG", "S-ORG", "I-ORG", "B-LOC", "I-LOC", "B-PER", "I-PER"
+                "E-ORG",
+                "E-LOC",
+                "S-MISC",
+                "I-MISC",
+                "S-PER",
+                "E-PER",
+                "B-MISC",
+                "O",
+                "S-LOC",
+                "E-MISC",
+                "B-ORG",
+                "S-ORG",
+                "I-ORG",
+                "B-LOC",
+                "I-LOC",
+                "B-PER",
+                "I-PER",
             ]
-        elif 'shibing624/bertspan4ner-base-chinese' == model_name:
+        elif "shibing624/bertspan4ner-base-chinese" == model_name:
             self.args.labels_list = ["O", "TIME", "PER", "LOC", "ORG"]
         else:
             self.args.labels_list = [
@@ -263,24 +287,30 @@ class NERModel:
         if model_type in ["bertspan"]:
             # Bert Span model, no B- tags, delete prefix
             if self.args.labels_list and not check_span_labels(self.args.labels_list):
-                self.args.labels_list = ['O'] + list(set([i.split('-')[-1] for i in self.args.labels_list if i != 'O']))
+                self.args.labels_list = ["O"] + list(
+                    set([i.split("-")[-1] for i in self.args.labels_list if i != "O"])
+                )
         self.num_labels = len(self.args.labels_list)
         logger.debug(f"Using labels list: {self.args.labels_list}")
 
-        if 'uncased' in model_name and not self.args.do_lower_case:
+        if "uncased" in model_name and not self.args.do_lower_case:
             self.args.do_lower_case = True
             logger.warning(f"Set do_lower_case=True for {model_name}")
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **self.args.config)
+            self.config = config_class.from_pretrained(
+                model_name, num_labels=self.num_labels, **self.args.config
+            )
             self.num_labels = self.num_labels
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
-            raise ValueError("{} does not currently support class weights".format(model_type))
+            raise ValueError(
+                "{} does not currently support class weights".format(model_type)
+            )
         else:
             self.weight = weight
 
@@ -296,13 +326,18 @@ class NERModel:
                     "Make sure CUDA is available or set use_cuda=False."
                 )
         else:
-            self.device = "cpu"
+            if torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            else:
+                self.device = "cpu"
         logger.debug(f"Device: {self.device}")
 
         if self.args.model_type in ["bertspan"]:
             self.loss_fct = None
         else:
-            self.loss_fct = init_loss(weight=self.weight, device=self.device, args=self.args)
+            self.loss_fct = init_loss(
+                weight=self.weight, device=self.device, args=self.args
+            )
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -327,13 +362,21 @@ class NERModel:
         else:
             quantized_weights = None
             if not self.args.quantized_model:
-                self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+                self.model = model_class.from_pretrained(
+                    model_name, config=self.config, **kwargs
+                )
             else:
-                quantized_weights = torch.load(os.path.join(model_name, "pytorch_model.bin"))
-                self.model = model_class.from_pretrained(None, config=self.config, state_dict=quantized_weights)
+                quantized_weights = torch.load(
+                    os.path.join(model_name, "pytorch_model.bin")
+                )
+                self.model = model_class.from_pretrained(
+                    None, config=self.config, state_dict=quantized_weights
+                )
 
             if self.args.dynamic_quantize:
-                self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
+                self.model = torch.quantization.quantize_dynamic(
+                    self.model, {torch.nn.Linear}, dtype=torch.qint8
+                )
             if self.args.quantized_model:
                 self.model.load_state_dict(quantized_weights)
             if self.args.dynamic_quantize:
@@ -345,12 +388,18 @@ class NERModel:
             try:
                 from torch.cuda import amp
             except AttributeError:
-                raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
+                raise AttributeError(
+                    "fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16."
+                )
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(
+            model_name, do_lower_case=self.args.do_lower_case, **kwargs
+        )
 
         if self.args.special_tokens_list:
-            self.tokenizer.add_tokens(self.args.special_tokens_list, special_tokens=True)
+            self.tokenizer.add_tokens(
+                self.args.special_tokens_list, special_tokens=True
+            )
             self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.args.model_name = model_name
@@ -358,43 +407,45 @@ class NERModel:
         self.pad_token_label_id = nn.CrossEntropyLoss().ignore_index
         self.args.use_multiprocessing = False
         if self.args.wandb_project and not wandb_available:
-            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            warnings.warn(
+                "wandb_project specified but wandb is not available. Wandb disabled."
+            )
             self.args.wandb_project = None
 
     def train_model(
-            self,
-            train_data,
-            output_dir=None,
-            show_running_loss=True,
-            args=None,
-            eval_data=None,
-            verbose=True,
-            **kwargs,
+        self,
+        train_data,
+        output_dir=None,
+        show_running_loss=True,
+        args=None,
+        eval_data=None,
+        verbose=True,
+        **kwargs,
     ):
         """
         Trains the model using 'train_data'
 
         Args:
-            train_data: train_data should be the path to a .txt file containing the training data OR a pandas 
+            train_data: train_data should be the path to a .txt file containing the training data OR a pandas
                 DataFrame with 3 columns.
-                If a text file is given the data should be in the CoNLL format. i.e. One word per line, with 
+                If a text file is given the data should be in the CoNLL format. i.e. One word per line, with
                 sentences seperated by an empty line.
                 The first word of the line should be a word, and the last should be a Name Entity Tag.
-                If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, 
+                If a DataFrame is given, each sentence should be split into words, with each word assigned a tag,
                 and with all words from the same sentence given the same sentence_id.
-            eval_data: Evaluation data (same format as train_data) against which evaluation will be performed when 
+            eval_data: Evaluation data (same format as train_data) against which evaluation will be performed when
                 evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss. Defaults to True.
             args (optional): Optional changes to the args dict of the model.
-            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments 
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments
                 (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
-                A metric function should take in two parameters. The first parameter will be the true labels, 
+                A metric function should take in two parameters. The first parameter will be the true labels,
                 and the second parameter will be the predictions.
 
         Returns:
             global_step: Number of global steps trained
-            training_details: Average training loss if evaluate_during_training is False or full training progress 
+            training_details: Average training loss if evaluate_during_training is False or full training progress
                 scores if evaluate_during_training is True
         """  # noqa: ignore flake8"
         if args:
@@ -403,7 +454,11 @@ class NERModel:
             show_running_loss = False
         if not output_dir:
             output_dir = self.args.output_dir
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
+        if (
+            os.path.exists(output_dir)
+            and os.listdir(output_dir)
+            and not self.args.overwrite_output_dir
+        ):
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
                 " Use --overwrite_output_dir to overcome.".format(output_dir)
@@ -420,19 +475,23 @@ class NERModel:
             **kwargs,
         )
         self.save_model(model=self.model)
-        logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
+        logger.info(
+            " Training of {} model complete. Saved to {}.".format(
+                self.args.model_type, output_dir
+            )
+        )
 
         return global_step, training_details
 
     def train(
-            self,
-            train_dataset,
-            output_dir,
-            show_running_loss=True,
-            eval_data=None,
-            test_data=None,
-            verbose=True,
-            **kwargs,
+        self,
+        train_dataset,
+        output_dir,
+        show_running_loss=True,
+        eval_data=None,
+        test_data=None,
+        verbose=True,
+        **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -450,9 +509,9 @@ class NERModel:
             num_workers=self.args.dataloader_num_workers,
         )
         t_total = (
-                len(train_dataloader)
-                // args.gradient_accumulation_steps
-                * args.num_train_epochs
+            len(train_dataloader)
+            // args.gradient_accumulation_steps
+            * args.num_train_epochs
         )
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = []
@@ -495,7 +554,7 @@ class NERModel:
                             p
                             for n, p in model.named_parameters()
                             if n not in custom_parameter_names
-                               and not any(nd in n for nd in no_decay)
+                            and not any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": args.weight_decay,
                     },
@@ -504,7 +563,7 @@ class NERModel:
                             p
                             for n, p in model.named_parameters()
                             if n not in custom_parameter_names
-                               and any(nd in n for nd in no_decay)
+                            and any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": 0.0,
                     },
@@ -596,15 +655,20 @@ class NERModel:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
                 epochs_trained = global_step // (
-                        len(train_dataloader) // args.gradient_accumulation_steps
+                    len(train_dataloader) // args.gradient_accumulation_steps
                 )
                 steps_trained_in_current_epoch = global_step % (
-                        len(train_dataloader) // args.gradient_accumulation_steps
+                    len(train_dataloader) // args.gradient_accumulation_steps
                 )
-                logger.info("   Continuing training from checkpoint, will skip to saved global_step")
+                logger.info(
+                    "   Continuing training from checkpoint, will skip to saved global_step"
+                )
                 logger.info("   Continuing training from epoch %d", epochs_trained)
                 logger.info("   Continuing training from global step %d", global_step)
-                logger.info("   Will skip the first %d steps in the current epoch", steps_trained_in_current_epoch)
+                logger.info(
+                    "   Will skip the first %d steps in the current epoch",
+                    steps_trained_in_current_epoch,
+                )
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
@@ -621,6 +685,7 @@ class NERModel:
             self.wandb_run_id = wandb.run.id
         if self.args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
         for _ in train_iterator:
             model.train()
@@ -659,7 +724,9 @@ class NERModel:
                         args=self.args,
                     )
                 if args.n_gpu > 1:
-                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
+                    loss = (
+                        loss.mean()
+                    )  # mean() to average on multi-gpu parallel training
                 current_loss = loss.item()
                 if show_running_loss:
                     batch_iterator.set_description(
@@ -676,7 +743,9 @@ class NERModel:
                     if self.args.fp16:
                         scaler.unscale_(optimizer)
                     if args.optimizer == "AdamW":
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                        torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), args.max_grad_norm
+                        )
                     if self.args.fp16:
                         scaler.step(optimizer)
                         scaler.update()
@@ -698,20 +767,28 @@ class NERModel:
                         )
                         logging_loss = tr_loss
                         if args.wandb_project:
-                            wandb.log({"Training loss": current_loss,
-                                       "lr": scheduler.get_last_lr()[0],
-                                       "global_step": global_step, })
+                            wandb.log(
+                                {
+                                    "Training loss": current_loss,
+                                    "lr": scheduler.get_last_lr()[0],
+                                    "global_step": global_step,
+                                }
+                            )
                     if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(
                             output_dir, "checkpoint-{}".format(global_step)
                         )
-                        self.save_model(output_dir_current, optimizer, scheduler, model=model)
+                        self.save_model(
+                            output_dir_current, optimizer, scheduler, model=model
+                        )
                     if args.evaluate_during_training and (
-                            args.evaluate_during_training_steps > 0
-                            and global_step % args.evaluate_during_training_steps == 0
+                        args.evaluate_during_training_steps > 0
+                        and global_step % args.evaluate_during_training_steps == 0
                     ):
-                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+                        output_dir_current = os.path.join(
+                            output_dir, "checkpoint-{}".format(global_step)
+                        )
                         os.makedirs(output_dir_current, exist_ok=True)
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(
@@ -737,7 +814,7 @@ class NERModel:
                             test_results, _, _ = self.eval_model(
                                 test_data,
                                 verbose=verbose
-                                        and args.evaluate_during_training_verbose,
+                                and args.evaluate_during_training_verbose,
                                 silent=args.evaluate_during_training_silent,
                                 wandb_log=False,
                                 **kwargs,
@@ -748,11 +825,16 @@ class NERModel:
                                 )
 
                         report = pd.DataFrame(training_progress_scores)
-                        report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
+                        report.to_csv(
+                            os.path.join(
+                                args.output_dir, "training_progress_scores.csv"
+                            ),
+                            index=False,
+                        )
                         if args.wandb_project:
                             wandb.log(self._get_last_metrics(training_progress_scores))
                         for key, value in flatten_results(
-                                self._get_last_metrics(training_progress_scores)
+                            self._get_last_metrics(training_progress_scores)
                         ).items():
                             try:
                                 tb_writer.add_scalar(key, value, global_step)
@@ -773,8 +855,8 @@ class NERModel:
                             )
                         if best_eval_metric and args.early_stopping_metric_minimize:
                             if (
-                                    results[args.early_stopping_metric] - best_eval_metric
-                                    < args.early_stopping_delta
+                                results[args.early_stopping_metric] - best_eval_metric
+                                < args.early_stopping_delta
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self.save_model(
@@ -788,8 +870,8 @@ class NERModel:
                             else:
                                 if args.use_early_stopping:
                                     if (
-                                            early_stopping_counter
-                                            < args.early_stopping_patience
+                                        early_stopping_counter
+                                        < args.early_stopping_patience
                                     ):
                                         early_stopping_counter += 1
                                         if verbose:
@@ -817,8 +899,8 @@ class NERModel:
                                         )
                         else:
                             if (
-                                    results[args.early_stopping_metric] - best_eval_metric
-                                    > args.early_stopping_delta
+                                results[args.early_stopping_metric] - best_eval_metric
+                                > args.early_stopping_delta
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self.save_model(
@@ -832,8 +914,8 @@ class NERModel:
                             else:
                                 if args.use_early_stopping:
                                     if (
-                                            early_stopping_counter
-                                            < args.early_stopping_patience
+                                        early_stopping_counter
+                                        < args.early_stopping_patience
                                     ):
                                         early_stopping_counter += 1
                                         if verbose:
@@ -878,7 +960,9 @@ class NERModel:
                     wandb_log=False,
                     **kwargs,
                 )
-                self.save_model(output_dir_current, optimizer, scheduler, results=results)
+                self.save_model(
+                    output_dir_current, optimizer, scheduler, results=results
+                )
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
@@ -893,19 +977,26 @@ class NERModel:
                         **kwargs,
                     )
                     for key in test_results:
-                        training_progress_scores["test_" + key].append(test_results[key])
+                        training_progress_scores["test_" + key].append(
+                            test_results[key]
+                        )
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
+                report.to_csv(
+                    os.path.join(args.output_dir, "training_progress_scores.csv"),
+                    index=False,
+                )
                 if args.wandb_project:
                     wandb.log(self._get_last_metrics(training_progress_scores))
                 for key, value in flatten_results(
-                        self._get_last_metrics(training_progress_scores)
+                    self._get_last_metrics(training_progress_scores)
                 ).items():
                     try:
                         tb_writer.add_scalar(key, value, global_step)
                     except (NotImplementedError, AssertionError):
                         if verbose:
-                            logger.warning(f"can't log value of type: {type(value)} to tensorboar")
+                            logger.warning(
+                                f"can't log value of type: {type(value)} to tensorboar"
+                            )
                 tb_writer.flush()
 
                 if not best_eval_metric:
@@ -919,8 +1010,8 @@ class NERModel:
                     )
                 if best_eval_metric and args.early_stopping_metric_minimize:
                     if (
-                            results[args.early_stopping_metric] - best_eval_metric
-                            < args.early_stopping_delta
+                        results[args.early_stopping_metric] - best_eval_metric
+                        < args.early_stopping_delta
                     ):
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(
@@ -932,7 +1023,10 @@ class NERModel:
                         )
                         early_stopping_counter = 0
                     else:
-                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                        if (
+                            args.use_early_stopping
+                            and args.early_stopping_consider_epochs
+                        ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
@@ -959,7 +1053,10 @@ class NERModel:
                                     else training_progress_scores,
                                 )
                 else:
-                    if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                    if (
+                        results[args.early_stopping_metric] - best_eval_metric
+                        > args.early_stopping_delta
+                    ):
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(
                             args.best_model_dir,
@@ -970,7 +1067,10 @@ class NERModel:
                         )
                         early_stopping_counter = 0
                     else:
-                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                        if (
+                            args.use_early_stopping
+                            and args.early_stopping_consider_epochs
+                        ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
@@ -1004,30 +1104,30 @@ class NERModel:
         )
 
     def eval_model(
-            self,
-            eval_data,
-            output_dir=None,
-            verbose=True,
-            silent=False,
-            wandb_log=True,
-            **kwargs,
+        self,
+        eval_data,
+        output_dir=None,
+        verbose=True,
+        silent=False,
+        wandb_log=True,
+        **kwargs,
     ):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
             eval_data: eval_data should be the path to .txt file containing the evaluation data or a pandas DataFrame.
-                        If a text file is used the data should be in the CoNLL format. I.e. One word per line, 
+                        If a text file is used the data should be in the CoNLL format. I.e. One word per line,
                             with sentences seperated by an empty line.
                         The first word of the line should be a word, and the last should be a Name Entity Tag.
-                        If a DataFrame is given, each sentence should be split into words, with each word assigned 
+                        If a DataFrame is given, each sentence should be split into words, with each word assigned
                             a tag, and with all words from the same sentence given the same sentence_id.
 
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
             wandb_log: If True, evaluation results will be logged to wandb.
-            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments 
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments
                 (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                 A metric function should take in two parameters. The first parameter will be the true labels,
                  and the second parameter will be the predictions.
@@ -1055,13 +1155,13 @@ class NERModel:
         return result, model_outputs, preds_list
 
     def evaluate(
-            self,
-            eval_dataset,
-            output_dir,
-            verbose=True,
-            silent=False,
-            wandb_log=True,
-            **kwargs,
+        self,
+        eval_dataset,
+        output_dir,
+        verbose=True,
+        silent=False,
+        wandb_log=True,
+        **kwargs,
     ):
         """
         Evaluates the model on eval_dataset.
@@ -1076,7 +1176,9 @@ class NERModel:
         id2label = {i: label for i, label in enumerate(self.args.labels_list)}
         span_metric = SpanEntityScore(id2label)
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+        eval_dataloader = DataLoader(
+            eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+        )
         eval_loss = 0.0
         nb_eval_steps = 0
         preds = None
@@ -1091,7 +1193,9 @@ class NERModel:
             model = torch.nn.DataParallel(model)
         if self.args.fp16:
             from torch.cuda import amp
-        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+        for batch in tqdm(
+            eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
+        ):
             with torch.no_grad():
                 inputs = self._get_inputs_dict(batch)
                 if self.args.fp16:
@@ -1145,10 +1249,19 @@ class NERModel:
                     out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
                 else:
                     preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
-                    out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
-                    out_attention_mask = np.append(out_attention_mask,
-                                                   inputs["attention_mask"].detach().cpu().numpy(), axis=0)
+                    out_label_ids = np.append(
+                        out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
+                    )
+                    out_input_ids = np.append(
+                        out_input_ids,
+                        inputs["input_ids"].detach().cpu().numpy(),
+                        axis=0,
+                    )
+                    out_attention_mask = np.append(
+                        out_attention_mask,
+                        inputs["attention_mask"].detach().cpu().numpy(),
+                        axis=0,
+                    )
         eval_loss = eval_loss / nb_eval_steps
         if args.model_type in ["bertspan"]:
             logger.debug(f"pred: {model_outputs[0]}")
@@ -1196,7 +1309,9 @@ class NERModel:
             output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
             with open(output_eval_file, "w", encoding="utf8") as writer:
                 if args.classification_report:
-                    cls_report = classification_report(out_label_list, preds_list, digits=4)
+                    cls_report = classification_report(
+                        out_label_list, preds_list, digits=4
+                    )
                     writer.write("{}\n".format(cls_report))
                 for key in sorted(result.keys()):
                     writer.write("{} = {}\n".format(key, str(result[key])))
@@ -1212,12 +1327,16 @@ class NERModel:
                 truth = [tag for out in out_label_list for tag in out]
                 preds = [tag for pred_out in preds_list for tag in pred_out]
                 outputs = [
-                    np.mean(logits, axis=0) for output in model_outputs for logits in output
+                    np.mean(logits, axis=0)
+                    for output in model_outputs
+                    for logits in output
                 ]
                 # ROC
                 wandb.log({"roc": wandb.plots.ROC(truth, outputs, labels_list)})
                 # Precision Recall
-                wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, labels_list)})
+                wandb.log(
+                    {"pr": wandb.plots.precision_recall(truth, outputs, labels_list)}
+                )
                 # Confusion Matrix
                 wandb.sklearn.plot_confusion_matrix(
                     truth,
@@ -1235,7 +1354,7 @@ class NERModel:
             to_predict: A python list of text (str) to be sent to the model for prediction.
             split_on_space: If True, is english string, each sequence will be split by spaces for assigning labels.
                             If False, is Chinese string, to_predict must be a a list of lists, the inner list being a
-                            list of strings consisting of the split sequences. The outer list is the list of sequences 
+                            list of strings consisting of the split sequences. The outer list is the list of sequences
                             to predict on.
 
         Returns:
@@ -1282,17 +1401,19 @@ class NERModel:
             # Change shape for batching
             encoded_model_inputs = []
             if self.args.model_type in ["bert", "bertspan", "xlnet", "albert"]:
-                for (input_ids, attention_mask, token_type_ids) in tqdm(
-                        zip(
-                            model_inputs["input_ids"],
-                            model_inputs["attention_mask"],
-                            model_inputs["token_type_ids"],
-                        )
+                for input_ids, attention_mask, token_type_ids in tqdm(
+                    zip(
+                        model_inputs["input_ids"],
+                        model_inputs["attention_mask"],
+                        model_inputs["token_type_ids"],
+                    )
                 ):
-                    encoded_model_inputs.append((input_ids, attention_mask, token_type_ids))
+                    encoded_model_inputs.append(
+                        (input_ids, attention_mask, token_type_ids)
+                    )
             else:
-                for (input_ids, attention_mask) in tqdm(
-                        zip(model_inputs["input_ids"], model_inputs["attention_mask"])
+                for input_ids, attention_mask in tqdm(
+                    zip(model_inputs["input_ids"], model_inputs["attention_mask"])
                 ):
                     encoded_model_inputs.append((input_ids, attention_mask))
 
@@ -1303,7 +1424,9 @@ class NERModel:
                 sampler=eval_sampler,
                 batch_size=args.eval_batch_size,
             )
-            for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
+            for batch in tqdm(
+                eval_dataloader, disable=args.silent, desc="Running Prediction"
+            ):
                 if self.args.model_type in ["bert", "bertspan", "xlnet", "albert"]:
                     inputs_onnx = {
                         "input_ids": batch[0].detach().cpu().numpy(),
@@ -1346,13 +1469,19 @@ class NERModel:
                 out_label_ids[index].append(pad_token_label_id)
 
                 if len(out_label_ids[index]) < max_len:
-                    out_label_ids[index].extend([-100] * (max_len - len(out_label_ids[index])))
+                    out_label_ids[index].extend(
+                        [-100] * (max_len - len(out_label_ids[index]))
+                    )
 
             out_label_ids = np.array(out_label_ids).reshape(len(out_label_ids), max_len)
         else:
-            eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
+            eval_dataset = self.load_and_cache_examples(
+                None, to_predict=predict_examples
+            )
             eval_sampler = SequentialSampler(eval_dataset)
-            eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+            eval_dataloader = DataLoader(
+                eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+            )
             self._move_model_to_device()
             eval_loss = 0.0
             nb_eval_steps = 0
@@ -1362,7 +1491,9 @@ class NERModel:
                 model = torch.nn.DataParallel(model)
             if self.args.fp16:
                 from torch.cuda import amp
-            for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
+            for batch in tqdm(
+                eval_dataloader, disable=args.silent, desc="Running Prediction"
+            ):
                 batch = tuple(t.to(device) for t in batch)
                 with torch.no_grad():
                     inputs = self._get_inputs_dict(batch)
@@ -1395,8 +1526,11 @@ class NERModel:
                     end_pred = torch.argmax(logits[1], -1).cpu().numpy()
                     input_lens = batch[5].cpu().numpy()
                     outputs = get_span_subject(start_pred, end_pred, input_lens)
-                    word_tokens = [[word for word in sentence.split()] for sentence in to_predict] \
-                        if split_on_space else [[word for word in sentence] for sentence in to_predict]
+                    word_tokens = (
+                        [[word for word in sentence.split()] for sentence in to_predict]
+                        if split_on_space
+                        else [[word for word in sentence] for sentence in to_predict]
+                    )
                     for model_output, sentence in zip(outputs, word_tokens):
                         p = []
                         for x in model_output:
@@ -1404,11 +1538,21 @@ class NERModel:
                                 p.append((id2label[x[0]], x[1], x[2]))
                         if split_on_space:
                             line_entities = [
-                                (' '.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p if entity
+                                (
+                                    " ".join(sentence[entity[1] : (entity[2] + 1)]),
+                                    entity[0],
+                                )
+                                for entity in p
+                                if entity
                             ]
                         else:
                             line_entities = [
-                                (''.join(sentence[entity[1]: (entity[2] + 1)]), entity[0]) for entity in p if entity
+                                (
+                                    "".join(sentence[entity[1] : (entity[2] + 1)]),
+                                    entity[0],
+                                )
+                                for entity in p
+                                if entity
                             ]
                         span_preds.append(p)
                         entities.append(line_entities)
@@ -1418,11 +1562,15 @@ class NERModel:
                         preds = logits.detach().cpu().numpy()
                         out_label_ids = inputs["labels"].detach().cpu().numpy()
                         out_input_ids = inputs["input_ids"].detach().cpu().numpy()
-                        out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
+                        out_attention_mask = (
+                            inputs["attention_mask"].detach().cpu().numpy()
+                        )
                     else:
                         preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
                         out_label_ids = np.append(
-                            out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
+                            out_label_ids,
+                            inputs["labels"].detach().cpu().numpy(),
+                            axis=0,
                         )
                         out_input_ids = np.append(
                             out_input_ids,
@@ -1463,7 +1611,7 @@ class NERModel:
                         preds_labels.append(pred[key])
                     line_entities = get_entities(preds_labels)
                     for i in line_entities:
-                        word = ' '.join(to_predict[n].split()[i[1]: i[2] + 1])
+                        word = " ".join(to_predict[n].split()[i[1] : i[2] + 1])
                         entity_type = i[0]
                         pairs.append((word, entity_type))
                     entities.append(pairs)
@@ -1483,7 +1631,7 @@ class NERModel:
                         preds_labels.append(pred[key])
                     line_entities = get_entities(preds_labels)
                     for i in line_entities:
-                        word = to_predict[n][i[1]: i[2] + 1]
+                        word = to_predict[n][i[1] : i[2] + 1]
                         entity_type = i[0]
                         pairs.append((word, entity_type))
                     entities.append(pairs)
@@ -1516,7 +1664,7 @@ class NERModel:
         return preds, model_outputs, entities
 
     def _convert_tokens_to_word_logits(
-            self, input_ids, label_ids, attention_mask, logits
+        self, input_ids, label_ids, attention_mask, logits
     ):
         ignore_ids = [
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token),
@@ -1547,15 +1695,17 @@ class NERModel:
 
         return word_logits
 
-    def load_and_cache_examples(self, data, evaluate=False, no_cache=False, to_predict=None):
+    def load_and_cache_examples(
+        self, data, evaluate=False, no_cache=False, to_predict=None
+    ):
         """
         Reads data_file and generates a TensorDataset containing InputFeatures. Caches the InputFeatures.
         Utility function for train() and eval() methods. Not intended to be used directly.
 
         Args:
-            data: Path to a .txt file containing training or evaluation data OR a pandas DataFrame containing 3 
+            data: Path to a .txt file containing training or evaluation data OR a pandas DataFrame containing 3
                 columns - sentence_id, words, labels.
-                    If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, 
+                    If a DataFrame is given, each sentence should be split into words, with each word assigned a tag,
                     and with all words from the same sentence given the same sentence_id.
             evaluate (optional): Indicates whether the examples are for evaluation or for training.
             no_cache (optional): Force feature conversion and prevent caching. Ignore cached features even if present.
@@ -1605,14 +1755,18 @@ class NERModel:
                         examples = read_examples_from_file(data, mode)
                     else:
                         if self.args.lazy_loading:
-                            raise ValueError("Input must be given as a path to a file when using lazy loading")
+                            raise ValueError(
+                                "Input must be given as a path to a file when using lazy loading"
+                            )
                         examples = [
                             InputExample(
                                 guid=sentence_id,
                                 words=sentence_df["words"].tolist(),
                                 labels=sentence_df["labels"].tolist(),
                             )
-                            for sentence_id, sentence_df in data.groupby(["sentence_id"])
+                            for sentence_id, sentence_df in data.groupby(
+                                ["sentence_id"]
+                            )
                         ]
 
                 cached_features_file = os.path.join(
@@ -1628,11 +1782,15 @@ class NERModel:
                 if not no_cache:
                     os.makedirs(self.args.cache_dir, exist_ok=True)
                 if os.path.exists(cached_features_file) and (
-                        (not args.reprocess_input_data and not no_cache)
-                        or (mode == "dev" and args.use_cached_eval_features and not no_cache)
+                    (not args.reprocess_input_data and not no_cache)
+                    or (
+                        mode == "dev" and args.use_cached_eval_features and not no_cache
+                    )
                 ):
                     features = torch.load(cached_features_file)
-                    logger.info(f" Features loaded from cache at {cached_features_file}")
+                    logger.info(
+                        f" Features loaded from cache at {cached_features_file}"
+                    )
                 else:
                     logger.info(" Converting to features started.")
                     features = convert_examples_to_features(
@@ -1660,20 +1818,30 @@ class NERModel:
                     )
                     if not no_cache:
                         torch.save(features, cached_features_file)
-                all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-                all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-                all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-                all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
+                all_input_ids = torch.tensor(
+                    [f.input_ids for f in features], dtype=torch.long
+                )
+                all_input_mask = torch.tensor(
+                    [f.input_mask for f in features], dtype=torch.long
+                )
+                all_segment_ids = torch.tensor(
+                    [f.segment_ids for f in features], dtype=torch.long
+                )
+                all_label_ids = torch.tensor(
+                    [f.label_ids for f in features], dtype=torch.long
+                )
                 if self.args.onnx:
                     return all_label_ids
-                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+                dataset = TensorDataset(
+                    all_input_ids, all_input_mask, all_segment_ids, all_label_ids
+                )
             return dataset
 
     def convert_to_onnx(self, output_dir=None, set_onnx_arg=True):
         """Convert the model to ONNX format and save to output_dir
 
         Args:
-            output_dir (str, optional): If specified, ONNX model will be saved to output_dir 
+            output_dir (str, optional): If specified, ONNX model will be saved to output_dir
                 (else args.output_dir will be used). Defaults to None.
             set_onnx_arg (bool, optional): Updates the model args to set onnx=True. Defaults to True.
         """  # noqa
@@ -1761,7 +1929,9 @@ class NERModel:
     def _create_training_progress_scores(self, **kwargs):
         return collections.defaultdict(list)
 
-    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+    def save_model(
+        self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
+    ):
         if not output_dir:
             output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -1772,8 +1942,12 @@ class NERModel:
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
             if optimizer and scheduler and self.args.save_optimizer_and_scheduler:
-                torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-                torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+                torch.save(
+                    optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                )
+                torch.save(
+                    scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                )
             self._save_model_args(output_dir)
 
         if results:
