@@ -20,9 +20,9 @@ import os
 from multiprocessing import Pool, cpu_count
 
 try:
-    from collections import Iterable, Mapping
-except ImportError:
     from collections.abc import Iterable, Mapping
+except ImportError:
+    from typing import Iterable, Mapping
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import Dataset

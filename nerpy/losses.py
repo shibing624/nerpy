@@ -1,8 +1,10 @@
 from typing import Optional, Union
+
 try:
-    from collections import Iterable
-except ImportError:
     from collections.abc import Iterable
+except ImportError:
+    from typing import Iterable
+
 from numbers import Real
 import warnings
 import torch
