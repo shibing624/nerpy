@@ -1,7 +1,6 @@
 [![PyPI version](https://badge.fury.io/py/nerpy.svg)](https://badge.fury.io/py/nerpy)
 [![Downloads](https://pepy.tech/badge/nerpy)](https://pepy.tech/project/nerpy)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![GitHub contributors](https://img.shields.io/github/contributors/shibing624/nerpy.svg)](https://github.com/shibing624/nerpy/graphs/contributors)
 [![License Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![python_version](https://img.shields.io/badge/Python-3.8%2B-green.svg)](requirements.txt)
 [![GitHub issues](https://img.shields.io/github/issues/shibing624/nerpy.svg)](https://github.com/shibing624/nerpy/issues)
